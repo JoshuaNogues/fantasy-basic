@@ -3,27 +3,20 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 interface Team {
-  id: string;
+  _id: string;
   name: string;
 }
 
 interface Player {
-  id: string;
+  _id: string;
   name: string;
   teamId?: string;
   points: Record<string, number>;
 }
 
 export default function Fantasy() {
-  const [teams, setTeams] = useState<Team[]>(() =>
-    JSON.parse(localStorage.getItem("teams") || "[]")
-  );
-
-  const [players, setPlayers] = useState<Player[]>(() => {
-    const stored = JSON.parse(localStorage.getItem("players") || "[]");
-    return stored.map((p: any) => ({ ...p, points: p.points ?? {} }));
-  });
-
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [teamName, setTeamName] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [playerTeam, setPlayerTeam] = useState<string>("");
@@ -33,50 +26,90 @@ export default function Fantasy() {
   const [pointsValue, setPointsValue] = useState<number>(0);
   const [selectedWeek, setSelectedWeek] = useState("week1");
 
+  // Fetch teams and players from backend
   useEffect(() => {
-    localStorage.setItem("teams", JSON.stringify(teams));
-  }, [teams]);
+    const fetchData = async () => {
+      try {
+        const [teamsRes, playersRes] = await Promise.all([
+          fetch("http://localhost:5000/api/teams"),
+          fetch("http://localhost:5000/api/players"),
+        ]);
 
-  useEffect(() => {
-    localStorage.setItem("players", JSON.stringify(players));
-  }, [players]);
+        const teamsData = await teamsRes.json();
+        const playersData = await playersRes.json();
 
-  const addTeam = () => {
-    if (!teamName) return;
-    const newTeam = { id: crypto.randomUUID(), name: teamName };
-    setTeams([...teams, newTeam]);
-    setTeamName("");
-  };
-
-  const addPlayer = () => {
-    if (!playerName) return;
-    const newPlayer: Player = {
-      id: crypto.randomUUID(),
-      name: playerName,
-      teamId: playerTeam || undefined,
-      points: {},
+        setTeams(teamsData);
+        setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      }
     };
-    setPlayers([...players, newPlayer]);
-    setPlayerName("");
-    setPlayerTeam("");
+    fetchData();
+  }, []);
+
+  // Add new team
+  const addTeam = async () => {
+    if (!teamName) return;
+    try {
+      const res = await fetch("http://localhost:5000/api/teams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: teamName }),
+      });
+      const newTeam = await res.json();
+      setTeams([...teams, newTeam]);
+      setTeamName("");
+    } catch (err) {
+      console.error("Error adding team:", err);
+    }
   };
 
-  const setPoints = () => {
+  // Add new player
+  const addPlayer = async () => {
+    if (!playerName) return;
+    try {
+      const res = await fetch("http://localhost:5000/api/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: playerName,
+          teamId: playerTeam || undefined,
+          points: {},
+        }),
+      });
+      const newPlayer = await res.json();
+      setPlayers([...players, newPlayer]);
+      setPlayerName("");
+      setPlayerTeam("");
+    } catch (err) {
+      console.error("Error adding player:", err);
+    }
+  };
+
+  // Set points for a player
+  const setPoints = async () => {
     if (!pointsPlayer || !selectedWeek || isNaN(pointsValue)) return;
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/players/${pointsPlayer}/points`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ week: selectedWeek, points: pointsValue }),
+        }
+      );
+      const updatedPlayer = await res.json();
+      setPlayers(players.map((p) => (p._id === updatedPlayer._id ? updatedPlayer : p)));
 
-    setPlayers(
-      players.map((p) =>
-        p.id === pointsPlayer
-          ? { ...p, points: { ...p.points, [selectedWeek]: pointsValue } }
-          : p
-      )
-    );
-
-    setPointsPlayer("");
-    setPointsTeam("");
-    setPointsValue(0);
+      setPointsPlayer("");
+      setPointsTeam("");
+      setPointsValue(0);
+    } catch (err) {
+      console.error("Error updating points:", err);
+    }
   };
 
+  // Filter players for selected team in points section
   const playersForPoints = pointsTeam
     ? players.filter((p) => p.teamId === pointsTeam)
     : [];
@@ -94,16 +127,14 @@ export default function Fantasy() {
             onChange={(e) => setTeamName(e.target.value)}
             placeholder="Team name"
           />
-          <button className="btn" onClick={addTeam}>
-            Add Team
-          </button>
+          <button className="btn" onClick={addTeam}>Add Team</button>
         </div>
 
         <h3>Your Teams</h3>
         <ul className="team-list">
           {teams.map((t) => (
-            <li key={t.id} className="team-card">
-              <Link to={`/team/${t.id}`}>{t.name}</Link>
+            <li key={t._id} className="team-card">
+              <Link to={`/team/${t._id}`}>{t.name}</Link>
             </li>
           ))}
         </ul>
@@ -124,24 +155,18 @@ export default function Fantasy() {
           >
             <option value="">Unassigned</option>
             {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
+              <option key={t._id} value={t._id}>{t.name}</option>
             ))}
           </select>
-          <button className="btn" onClick={addPlayer}>
-            Add Player
-          </button>
+          <button className="btn" onClick={addPlayer}>Add Player</button>
         </div>
 
         <h3>All Players</h3>
         <ul className="player-list">
           {players.map((p) => (
-            <li key={p.id} className="player-card">
+            <li key={p._id} className="player-card">
               <strong>{p.name}</strong>{" "}
-              {p.teamId
-                ? `(Team: ${teams.find((t) => t.id === p.teamId)?.name})`
-                : "(Unassigned)"}{" "}
+              {p.teamId ? `(Team: ${teams.find((t) => t._id === p.teamId)?.name})` : "(Unassigned)"}{" "}
               – Points: {p.points[selectedWeek] || 0}
             </li>
           ))}
@@ -161,9 +186,7 @@ export default function Fantasy() {
           >
             <option value="">Select Team</option>
             {teams.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
+              <option key={t._id} value={t._id}>{t.name}</option>
             ))}
           </select>
 
@@ -174,9 +197,7 @@ export default function Fantasy() {
           >
             <option value="">Select Player</option>
             {playersForPoints.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
+              <option key={p._id} value={p._id}>{p.name}</option>
             ))}
           </select>
 
@@ -185,10 +206,9 @@ export default function Fantasy() {
             onChange={(e) => setSelectedWeek(e.target.value)}
           >
             {Array.from({ length: 17 }, (_, i) => (
-              <option
-                key={`week${i + 1}`}
-                value={`week${i + 1}`}
-              >{`Week ${i + 1}`}</option>
+              <option key={`week${i + 1}`} value={`week${i + 1}`}>
+                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+              </option>
             ))}
           </select>
 
@@ -198,9 +218,7 @@ export default function Fantasy() {
             onChange={(e) => setPointsValue(Number(e.target.value))}
             placeholder="Points"
           />
-          <button className="btn" onClick={setPoints}>
-            Set Points
-          </button>
+          <button className="btn" onClick={setPoints}>Set Points</button>
         </div>
       </section>
     </div>

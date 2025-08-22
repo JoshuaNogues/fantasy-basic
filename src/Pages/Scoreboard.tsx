@@ -4,12 +4,12 @@ import { Link } from "react-router-dom";
 import "../App.css";
 
 interface Team {
-  id: string;
+  _id: string; // MongoDB ID
   name: string;
 }
 
 interface Player {
-  id: string;
+  _id: string;
   name: string;
   teamId?: string;
   points: Record<string, number>;
@@ -20,20 +20,30 @@ export default function Scoreboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
 
+  // Fetch data from backend
   useEffect(() => {
-    const storedTeams = JSON.parse(localStorage.getItem("teams") || "[]");
-    const storedPlayers = JSON.parse(localStorage.getItem("players") || "[]");
-    const fixedPlayers = storedPlayers.map((p: any) => ({
-      ...p,
-      points: p.points ?? {},
-    }));
+    const fetchData = async () => {
+      try {
+        const [teamsRes, playersRes] = await Promise.all([
+          fetch("http://localhost:5000/api/teams"),
+          fetch("http://localhost:5000/api/players"),
+        ]);
 
-    setTeams(storedTeams);
-    setPlayers(fixedPlayers);
+        const teamsData = await teamsRes.json();
+        const playersData = await playersRes.json();
+
+        setTeams(teamsData);
+        setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      }
+    };
+
+    fetchData();
   }, []);
 
   const teamScores = teams.map((t) => {
-    const teamPlayers = players.filter((p) => p.teamId === t.id);
+    const teamPlayers = players.filter((p) => p.teamId === t._id);
     const total = teamPlayers.reduce(
       (sum, p) => sum + (p.points[selectedWeek] || 0),
       0
@@ -82,15 +92,14 @@ export default function Scoreboard() {
         {sortedTeams.length > 0 ? (
           <div className="team-grid">
             {sortedTeams.map((t) => (
-              <div key={t.id} className="team-card">
+              <div key={t._id} className="team-card">
                 <h2>
-                  <Link to={`/team/${t.id}`}>{t.name}</Link>
+                  <Link to={`/team/${t._id}`}>{t.name}</Link>
                 </h2>
                 <p>Total Points: <strong>{t.total}</strong></p>
                 {t.leadingScorer ? (
                   <p>
-                    ⭐ Top Scorer: {t.leadingScorer.name} (
-                    {t.leadingPoints} pts)
+                    ⭐ Top Scorer: {t.leadingScorer.name} ({t.leadingPoints} pts)
                   </p>
                 ) : (
                   <p>No players yet</p>

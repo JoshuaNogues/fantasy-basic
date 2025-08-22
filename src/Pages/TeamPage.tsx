@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import "../App.css";
 
 interface Team {
-  id: string;
+  _id: string;
   name: string;
 }
 
 interface Player {
-  id: string;
+  _id: string;
   name: string;
   teamId?: string;
   points: Record<string, number>;
@@ -17,29 +17,48 @@ interface Player {
 
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [team, setTeam] = useState<Team | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
+  const [loading, setLoading] = useState(true); // <-- Loading state
 
+  // Fetch team and its players from backend
   useEffect(() => {
-    const storedTeams = JSON.parse(localStorage.getItem("teams") || "[]");
-    const storedPlayers = JSON.parse(localStorage.getItem("players") || "[]");
-    const fixedPlayers = storedPlayers.map((p: any) => ({
-      ...p,
-      points: p.points ?? {},
-    }));
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch team
+        const teamRes = await fetch(`http://localhost:5000/api/teams/${id}`);
+        if (!teamRes.ok) throw new Error("Team not found");
+        const teamData = await teamRes.json();
+        setTeam(teamData);
 
-    setTeams(storedTeams);
-    setPlayers(fixedPlayers);
-  }, []);
+        // Fetch all players and filter by team
+        const playersRes = await fetch(`http://localhost:5000/api/players`);
+        const allPlayers = await playersRes.json();
+        const teamPlayers = allPlayers
+          .filter((p: any) => p.teamId === id)
+          .map((p: any) => ({ ...p, points: p.points ?? {} }));
+        setPlayers(teamPlayers);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setTeam(null);
+        setPlayers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
 
-  const team = teams.find((t) => t.id === id);
-  const teamPlayers = players.filter((p) => p.teamId === id);
-
-  const teamTotal = teamPlayers.reduce(
-    (sum, p) => sum + (p.points[selectedWeek] || 0),
-    0
-  );
+  // Show loading while fetching
+  if (loading) {
+    return (
+      <div className="team-page">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   if (!team) {
     return (
@@ -51,6 +70,11 @@ export default function TeamPage() {
       </div>
     );
   }
+
+  const teamTotal = players.reduce(
+    (sum, p) => sum + (p.points[selectedWeek] || 0),
+    0
+  );
 
   return (
     <div className="team-page">
@@ -74,10 +98,10 @@ export default function TeamPage() {
 
       <section className="card-section">
         <h2>Players</h2>
-        {teamPlayers.length > 0 ? (
+        {players.length > 0 ? (
           <ul className="player-list">
-            {teamPlayers.map((p) => (
-              <li key={p.id} className="player-card">
+            {players.map((p) => (
+              <li key={p._id} className="player-card">
                 <strong>{p.name}</strong> – Points: {p.points[selectedWeek] || 0}
               </li>
             ))}

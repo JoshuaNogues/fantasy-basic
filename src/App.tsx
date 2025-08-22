@@ -6,15 +6,29 @@ import Home from "./Pages/Home";
 import { useEffect, useState, useRef } from "react";
 import "./App.css";
 
+interface Team {
+  _id: string; // MongoDB uses _id
+  name: string;
+}
+
 export default function App() {
-  const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLLIElement>(null);
 
+  // Fetch teams from backend
   useEffect(() => {
-    const stored = localStorage.getItem("teams");
-    if (stored) setTeams(JSON.parse(stored));
+    const fetchTeams = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/teams");
+        const data = await res.json();
+        setTeams(data);
+      } catch (err) {
+        console.error("Error fetching teams:", err);
+      }
+    };
+    fetchTeams();
   }, []);
 
   // Close dropdown if clicked outside
@@ -89,12 +103,12 @@ export default function App() {
                 {teams.length > 0 ? (
                   teams.map((t) => (
                     <Link
-                      key={t.id}
-                      to={`/team/${t.id}`}
+                      key={t._id}
+                      to={`/team/${t._id}`}
                       className="dropdown-item"
                       onClick={() => {
                         setDropdownOpen(false);
-                        setMobileMenuOpen(false); // closes mobile menu too
+                        setMobileMenuOpen(false); // close mobile menu too
                       }}
                     >
                       {t.name}
