@@ -1,0 +1,573 @@
+/* ======================================================
+   ROOT & GLOBAL STYLES
+   ====================================================== */
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f9fafb;
+  color: #222;
+}
+
+.content {
+  padding-top: 20px;
+}
+
+/* ======================================================
+   LOGO & ANIMATIONS
+   ====================================================== */
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+/* ======================================================
+   NAVBAR
+   ====================================================== */
+.navbar {
+  width: 100%;               /* full width of viewport */
+  max-width: none;           /* remove inherited max-width */
+  background: #111827;
+  border-bottom: 2px solid #1f2937;
+  padding: 16px 24px;
+  box-sizing: border-box;    /* include padding in width */
+  display: flex;
+  justify-content: center;   /* center the navlist */
+}
+
+.navlist {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 20px; /* spacing between nav items */
+}
+
+.navlist > .navitem + .navitem {
+  margin-left: 20px; /* fallback spacing */
+}
+
+.navitem {
+  display: inline-flex;
+  align-items: center;
+  position: relative; /* dropdown anchor */
+}
+
+.nav-link {
+  color: #f3f4f6;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: #60a5fa;
+}
+
+.nav-trigger {
+  user-select: none;
+}
+
+.dropdown .dropdown-content {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+.dropdown-item {
+  color: #f3f4f6;
+  padding: 10px 14px;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover {
+  background: #374151;
+}
+
+
+/* ======================================================
+   HERO / FEATURES / CTA BUTTONS
+   ====================================================== */
+.hero {
+  text-align: center;
+  padding: 80px 20px;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb, #3b82f6);
+  color: white;
+  border-radius: 12px;
+}
+
+.hero h1 { font-size: 3rem; margin-bottom: 16px; }
+.hero p { font-size: 1.25rem; margin-bottom: 24px; }
+
+.cta-button {
+  background: #facc15;
+  color: #111;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.cta-button:hover { background: #eab308; }
+
+.features {
+  text-align: center;
+  padding: 60px 20px;
+  background: #f8fafc;
+  max-width: 1200px;
+}
+
+.features h2 {
+  margin-bottom: 20px;
+  color: #1e293b;
+}
+
+.feature-row {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+
+.feature-card {
+  flex: 0 0 300px;
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  text-align: left;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feature-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+.feature-card h3 {
+  margin-bottom: 12px;
+  font-size: 1.25rem;
+  color: #1e3a8a;
+}
+
+/* ======================================================
+   WHY SECTION
+   ====================================================== */
+.why {
+  margin-bottom: 60px;
+}
+
+.why h2 { text-align: center; margin-bottom: 20px; }
+.why ul { max-width: 600px; margin: 0 auto; list-style: none; padding: 0; }
+.why li {
+  background: white;
+  margin: 10px 0;
+  padding: 14px 18px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* ======================================================
+   FOOTER
+   ====================================================== */
+.footer {
+  text-align: center;
+  padding: 20px;
+  margin-top: 40px;
+  border-top: 1px solid #ddd;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+/* ======================================================
+   FANTASY PAGE
+   ====================================================== */
+.fantasy-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page-title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 40px;
+  color: #1e3a8a;
+}
+
+.card-section {
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 40px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+.card-section h2 { margin-bottom: 20px; color: #1e3a8a; }
+
+.form-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+input, select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  min-width: 120px;
+}
+
+.btn {
+  background: #2563eb;
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn:hover { background: #1e40af; }
+
+.team-list, .player-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.team-card, .player-card {
+  background: #f3f4f6;
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* ======================================================
+   TEAM PAGE
+   ====================================================== */
+.team-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.team-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+/* reusing .form-row from Fantasy for week selector */
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.player-card {
+  background: #f3f4f6;
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.btn-link {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 8px 16px;
+  background: #2563eb;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-link:hover { background: #1e40af; }
+
+/* ======================================================
+   SCOREBOARD PAGE
+   ====================================================== */
+.scoreboard-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.scoreboard-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.team-card {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.team-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+.team-card h2 {
+  margin-bottom: 12px;
+  font-size: 1.25rem;
+}
+
+.team-card p {
+  margin: 6px 0;
+}
+
+/* ======================================================
+   MOBILE RESPONSIVE
+   ====================================================== */
+
+/* Hamburger button for mobile */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #f3f4f6;       /* make sure it's visible against navbar */
+  cursor: pointer;
+  position: absolute;
+  top: -6px;
+  right: 24px;
+  outline: none;         /* remove the default focus outline */
+}
+
+/* Remove weird outline/rounded square on click/focus */
+.hamburger:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .hamburger {
+    display: block;
+  }
+
+  .navlist {
+    display: none; /* hide menu by default on mobile */
+    flex-direction: column;
+    background: #111827;
+    position: absolute;
+    top: 64px; /* below navbar */
+    left: 0;
+    width: 100%;
+    padding: 16px 0;
+    gap: 0;
+  }
+
+  .navlist.open {
+    display: flex;
+  }
+
+  .navitem {
+    padding: 12px 24px;
+  }
+
+  /* Dropdown inside mobile menu */
+ /* Dropdown panel (for Teams) */
+.dropdown .dropdown-content {
+  position: absolute;
+  top: 100%;       /* put directly below parent */
+  left: 0;         /* align left edge of parent */
+  margin-top: 8px; /* optional small spacing */
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+
+  .dropdown-item {
+    padding: 10px 24px;
+  }
+}
+
+
+
+/* Hero Section */
+@media (max-width: 768px) {
+  .hero {
+    padding: 60px 12px;
+    border-radius: 8px;
+  }
+
+  .hero h1 {
+    font-size: 2rem;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .cta-button {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Features: stack vertically */
+@media (max-width: 1024px) {
+  .feature-row {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .feature-card {
+    flex: 1 1 auto;
+  }
+}
+
+/* Team & Player Grids */
+@media (max-width: 768px) {
+  .team-list,
+  .player-list,
+  .team-grid {
+    grid-template-columns: 1fr; /* single column */
+    gap: 12px;
+  }
+}
+
+.team-header h1 {
+  font-size: 2rem;
+}
+
+.team-header h2 {
+  font-size: 1.3rem;
+}
+
+.form-row label {
+  font-size: 1rem;
+}
+
+/* Fantasy, Team, Scoreboard pages padding */
+@media (max-width: 768px) {
+  .fantasy-page,
+  .team-page,
+  .scoreboard-page {
+    padding: 12px;
+  }
+
+  .page-title,
+  .team-header,
+  .scoreboard-header {
+    font-size: 1.8rem;
+    margin-bottom: 24px;
+  }
+}
+
+/* Buttons scaling for mobile */
+@media (max-width: 480px) {
+  .btn,
+  .btn-link,
+  .cta-button {
+    width: 100%;
+    padding: 10px;
+  }
+}
+
+/* ======================================================
+   SCOREBOARD HEADER RESPONSIVE
+   ====================================================== */
+@media (max-width: 768px) {
+  .scoreboard-header {
+    padding: 16px;
+    text-align: left;
+  }
+
+  .scoreboard-header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+  }
+
+  .scoreboard-header .form-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .scoreboard-header label {
+    font-size: 0.95rem;
+  }
+
+  .scoreboard-header select {
+    width: 100%;
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .scoreboard-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .scoreboard-header select {
+    max-width: 100%;
+  }
+}
