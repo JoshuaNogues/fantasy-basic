@@ -27,28 +27,32 @@ export default function Fantasy() {
   const [selectedWeek, setSelectedWeek] = useState("week1");
 
   // Use environment variable for backend URL
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_BASE; // ✅ updated
 
-  // Fetch teams and players from backend
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [teamsRes, playersRes] = await Promise.all([
-          fetch(`${API_URL}/api/teams`),
-          fetch(`${API_URL}/api/players`),
-        ]);
+// Fetch teams and players from backend
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const [teamsRes, playersRes] = await Promise.all([
+        fetch(`${API_URL}/api/teams`),
+        fetch(`${API_URL}/api/players`),
+      ]);
 
-        const teamsData = await teamsRes.json();
-        const playersData = await playersRes.json();
+      if (!teamsRes.ok) throw new Error(`Failed to fetch teams: ${teamsRes.status}`);
+      if (!playersRes.ok) throw new Error(`Failed to fetch players: ${playersRes.status}`);
 
-        setTeams(teamsData);
-        setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      }
-    };
-    fetchData();
-  }, [API_URL]);
+      const teamsData = await teamsRes.json();
+      const playersData = await playersRes.json();
+
+      setTeams(teamsData);
+      setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
+  };
+  fetchData();
+}, [API_URL]);
+
 
   // Add new team
   const addTeam = async () => {

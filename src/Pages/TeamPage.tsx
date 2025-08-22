@@ -22,33 +22,35 @@ export default function TeamPage() {
   const [selectedWeek, setSelectedWeek] = useState("week1");
   const [loading, setLoading] = useState(true);
 
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_BASE; // ✅ corrected
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Fetch team
-        const teamRes = await fetch(`${API_URL}/api/teams/${id}`);
-        if (!teamRes.ok) throw new Error("Team not found");
-        const teamData = await teamRes.json();
-        setTeam(teamData);
+useEffect(() => {
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch team
+      const teamRes = await fetch(`${API_URL}/api/teams/${id}`);
+      if (!teamRes.ok) throw new Error(`Failed to fetch team: ${teamRes.status}`);
+      const teamData = await teamRes.json();
+      setTeam(teamData);
 
-        // Fetch only players for this team
-        const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
-        const teamPlayers = await playersRes.json();
-        setPlayers(teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} })));
-      } catch (err) {
-        console.error(err);
-        setTeam(null);
-        setPlayers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+      // Fetch only players for this team
+      const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
+      if (!playersRes.ok) throw new Error(`Failed to fetch players: ${playersRes.status}`);
+      const teamPlayers = await playersRes.json();
+      setPlayers(teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} })));
+    } catch (err) {
+      console.error(err);
+      setTeam(null);
+      setPlayers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
-  }, [id, API_URL]);
+  fetchData();
+}, [id, API_URL]);
+
 
   if (loading) return null;
 

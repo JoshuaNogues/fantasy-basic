@@ -1,0 +1,21 @@
+# fly.toml for fantasy-basic-backend
+app = "fantasy-basic-backend"
+primary_region = "mia"
+
+# ========================
+
+# ========================
+# HTTP service
+# ========================
+[http_service]
+  # Fly will route requests to this port
+  internal_port = 5000
+  force_https = true
+
+# ========================
+# VM configuration
+# ========================
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

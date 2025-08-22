@@ -20,29 +20,32 @@ export default function Scoreboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
 
-  const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_BASE; // ✅ corrected
 
-  // Fetch data from backend
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [teamsRes, playersRes] = await Promise.all([
-          fetch(`${API_URL}/api/teams`),
-          fetch(`${API_URL}/api/players`),
-        ]);
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const [teamsRes, playersRes] = await Promise.all([
+        fetch(`${API_URL}/api/teams`),
+        fetch(`${API_URL}/api/players`),
+      ]);
 
-        const teamsData = await teamsRes.json();
-        const playersData = await playersRes.json();
-
-        setTeams(teamsData);
-        setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
-      } catch (err) {
-        console.error("Error fetching data:", err);
+      if (!teamsRes.ok || !playersRes.ok) {
+        throw new Error("Failed to fetch data from backend");
       }
-    };
 
-    fetchData();
-  }, [API_URL]);
+      const teamsData = await teamsRes.json();
+      const playersData = await playersRes.json();
+
+      setTeams(teamsData);
+      setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
+  };
+
+  fetchData();
+}, [API_URL]);
 
   const teamScores = teams.map((t) => {
     const teamPlayers = players.filter((p) => p.teamId === t._id);

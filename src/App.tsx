@@ -18,21 +18,23 @@ export default function App() {
   const dropdownRef = useRef<HTMLLIElement>(null);
 
   // Use environment variable for backend URL
-  const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_BASE; // ✅ corrected
 
-  // Fetch teams from backend
-  useEffect(() => {
-    const fetchTeams = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/teams`);
-        const data = await res.json();
-        setTeams(data);
-      } catch (err) {
-        console.error("Error fetching teams:", err);
-      }
-    };
-    fetchTeams();
-  }, [API_URL]);
+// Fetch teams from backend
+useEffect(() => {
+  const fetchTeams = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/teams`);
+      if (!res.ok) throw new Error(`Failed to fetch teams: ${res.status}`);
+      const data = await res.json();
+      setTeams(data);
+    } catch (err) {
+      console.error("Error fetching teams:", err);
+    }
+  };
+  fetchTeams();
+}, [API_URL]);
+
 
   // Close dropdown if clicked outside
   useEffect(() => {
