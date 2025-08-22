@@ -22,18 +22,20 @@ export default function TeamPage() {
   const [selectedWeek, setSelectedWeek] = useState("week1");
   const [loading, setLoading] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         // Fetch team
-        const teamRes = await fetch(`http://localhost:5000/api/teams/${id}`);
+        const teamRes = await fetch(`${API_URL}/api/teams/${id}`);
         if (!teamRes.ok) throw new Error("Team not found");
         const teamData = await teamRes.json();
         setTeam(teamData);
 
         // Fetch only players for this team
-        const playersRes = await fetch(`http://localhost:5000/api/players?teamId=${id}`);
+        const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
         const teamPlayers = await playersRes.json();
         setPlayers(teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} })));
       } catch (err) {
@@ -46,12 +48,10 @@ export default function TeamPage() {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, API_URL]);
 
-  // Don't render anything until loading finishes
   if (loading) return null;
 
-  // Show error if team not found
   if (!team) {
     return (
       <div className="team-page">

@@ -11,11 +11,10 @@ const app = express();
 // ==========================
 // CORS Configuration
 // ==========================
-
-// Allow local dev and deployed Netlify frontend
+// Allow local dev, Netlify frontend, and Fly.io domain
 const allowedOrigins = [
-  "http://localhost:5173",            // Vite dev
-  "https://veefivefantasy.netlify.app" // Netlify prod (no trailing slash)
+  "http://localhost:5173",              // Vite dev
+  "https://veefivefantasy.netlify.app", // Netlify prod
 ];
 
 app.use(cors({
@@ -25,6 +24,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
+      console.warn("Blocked by CORS:", origin);
       return callback(new Error("Not allowed by CORS"));
     }
   }
@@ -35,7 +35,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // ==========================
-// Connect to MongoDB
+// Connect to MongoDB Atlas
 // ==========================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
@@ -139,5 +139,6 @@ app.patch("/api/players/:id/points", async (req, res) => {
 // Start server
 // ==========================
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Backend live! Use your Fly.io URL as the API base for frontend.`);
 });

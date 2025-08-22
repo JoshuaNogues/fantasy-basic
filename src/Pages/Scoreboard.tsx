@@ -20,13 +20,15 @@ export default function Scoreboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // Fetch data from backend
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [teamsRes, playersRes] = await Promise.all([
-          fetch("http://localhost:5000/api/teams"),
-          fetch("http://localhost:5000/api/players"),
+          fetch(`${API_URL}/api/teams`),
+          fetch(`${API_URL}/api/players`),
         ]);
 
         const teamsData = await teamsRes.json();
@@ -40,7 +42,7 @@ export default function Scoreboard() {
     };
 
     fetchData();
-  }, []);
+  }, [API_URL]);
 
   const teamScores = teams.map((t) => {
     const teamPlayers = players.filter((p) => p.teamId === t._id);

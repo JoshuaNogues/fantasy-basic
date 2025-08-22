@@ -17,11 +17,14 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLLIElement>(null);
 
+  // Use environment variable for backend URL
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // Fetch teams from backend
   useEffect(() => {
     const fetchTeams = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/teams");
+        const res = await fetch(`${API_URL}/api/teams`);
         const data = await res.json();
         setTeams(data);
       } catch (err) {
@@ -29,7 +32,7 @@ export default function App() {
       }
     };
     fetchTeams();
-  }, []);
+  }, [API_URL]);
 
   // Close dropdown if clicked outside
   useEffect(() => {

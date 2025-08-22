@@ -26,13 +26,16 @@ export default function Fantasy() {
   const [pointsValue, setPointsValue] = useState<number>(0);
   const [selectedWeek, setSelectedWeek] = useState("week1");
 
+  // Use environment variable for backend URL
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // Fetch teams and players from backend
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [teamsRes, playersRes] = await Promise.all([
-          fetch("http://localhost:5000/api/teams"),
-          fetch("http://localhost:5000/api/players"),
+          fetch(`${API_URL}/api/teams`),
+          fetch(`${API_URL}/api/players`),
         ]);
 
         const teamsData = await teamsRes.json();
@@ -45,13 +48,13 @@ export default function Fantasy() {
       }
     };
     fetchData();
-  }, []);
+  }, [API_URL]);
 
   // Add new team
   const addTeam = async () => {
     if (!teamName) return;
     try {
-      const res = await fetch("http://localhost:5000/api/teams", {
+      const res = await fetch(`${API_URL}/api/teams`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: teamName }),
@@ -68,7 +71,7 @@ export default function Fantasy() {
   const addPlayer = async () => {
     if (!playerName) return;
     try {
-      const res = await fetch("http://localhost:5000/api/players", {
+      const res = await fetch(`${API_URL}/api/players`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,14 +93,11 @@ export default function Fantasy() {
   const setPoints = async () => {
     if (!pointsPlayer || !selectedWeek || isNaN(pointsValue)) return;
     try {
-      const res = await fetch(
-        `http://localhost:5000/api/players/${pointsPlayer}/points`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ week: selectedWeek, points: pointsValue }),
-        }
-      );
+      const res = await fetch(`${API_URL}/api/players/${pointsPlayer}/points`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ week: selectedWeek, points: pointsValue }),
+      });
       const updatedPlayer = await res.json();
       setPlayers(players.map((p) => (p._id === updatedPlayer._id ? updatedPlayer : p)));
 
