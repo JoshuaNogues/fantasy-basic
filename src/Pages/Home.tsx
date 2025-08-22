@@ -5,8 +5,8 @@ export default function Home() {
     <div className="home">
       {/* Hero Section */}
       <section className="hero">
-        <h1>🏈 VeeFive Fantasy</h1>
-        <p>The easiest way to play fantasy football — reimagined by team strengths, not just players.</p>
+        <h1>🏈 Funtisy 5</h1>
+        <p>The easiest way to play fantasy football — reimagined by team strengths. Brought to you by Fanzday.</p>
         <Link to="/fantasy" className="cta-button">Start Playing</Link>
       </section>
 
@@ -42,7 +42,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="footer">
-        <p>© {new Date().getFullYear()} VeeFive Fantasy. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Funtasy 5 - Powered By Fanzday. All rights reserved.</p>
       </footer>
     </div>
   );
