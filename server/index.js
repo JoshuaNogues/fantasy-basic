@@ -8,9 +8,26 @@ dotenv.config();
 
 const app = express();
 
-// Enable CORS for front-end
+// ==========================
+// CORS Configuration
+// ==========================
+
+// Allow local dev and deployed Netlify frontend
+const allowedOrigins = [
+  "http://localhost:5173",            // Vite dev
+  "https://veefivefantasy.netlify.app" // Netlify prod (no trailing slash)
+];
+
 app.use(cors({
-  origin: ["http://localhost:5173", "https://veefivefantasy.netlify.app/"], 
+  origin: (origin, callback) => {
+    // allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  }
 }));
 
 app.use(express.json());
@@ -45,7 +62,6 @@ const Player = mongoose.model("Player", playerSchema);
 // ==========================
 
 // --- TEAMS ---
-// Get all teams
 app.get("/api/teams", async (req, res) => {
   try {
     const teams = await Team.find();
@@ -55,7 +71,6 @@ app.get("/api/teams", async (req, res) => {
   }
 });
 
-// Get a single team by ID
 app.get("/api/teams/:id", async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
@@ -66,7 +81,6 @@ app.get("/api/teams/:id", async (req, res) => {
   }
 });
 
-// Create a new team
 app.post("/api/teams", async (req, res) => {
   try {
     const team = new Team(req.body);
@@ -78,7 +92,6 @@ app.post("/api/teams", async (req, res) => {
 });
 
 // --- PLAYERS ---
-// Get all players or filter by teamId
 app.get("/api/players", async (req, res) => {
   try {
     const { teamId } = req.query;
@@ -90,7 +103,6 @@ app.get("/api/players", async (req, res) => {
   }
 });
 
-// Create a new player
 app.post("/api/players", async (req, res) => {
   try {
     const player = new Player(req.body);
@@ -101,7 +113,6 @@ app.post("/api/players", async (req, res) => {
   }
 });
 
-// Update player points
 app.patch("/api/players/:id/points", async (req, res) => {
   try {
     const { id } = req.params;
