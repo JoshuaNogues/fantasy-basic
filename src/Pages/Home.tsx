@@ -5,7 +5,7 @@ export default function Home() {
     <div className="home">
       {/* Hero Section */}
       <section className="hero">
-        <h1>🏈 Funtisy 5</h1>
+        <h1>🏈 Funtasy 5</h1>
         <p>The easiest way to play fantasy football — reimagined by team strengths. Brought to you by Fanzday.</p>
         <Link to="/fantasy" className="cta-button">Start Playing</Link>
       </section>
