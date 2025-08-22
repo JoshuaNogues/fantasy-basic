@@ -20,9 +20,8 @@ export default function TeamPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
-  const [loading, setLoading] = useState(true); // <-- Loading state
+  const [loading, setLoading] = useState(true);
 
-  // Fetch team and its players from backend
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -33,33 +32,26 @@ export default function TeamPage() {
         const teamData = await teamRes.json();
         setTeam(teamData);
 
-        // Fetch all players and filter by team
-        const playersRes = await fetch(`http://localhost:5000/api/players`);
-        const allPlayers = await playersRes.json();
-        const teamPlayers = allPlayers
-          .filter((p: any) => p.teamId === id)
-          .map((p: any) => ({ ...p, points: p.points ?? {} }));
-        setPlayers(teamPlayers);
+        // Fetch only players for this team
+        const playersRes = await fetch(`http://localhost:5000/api/players?teamId=${id}`);
+        const teamPlayers = await playersRes.json();
+        setPlayers(teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} })));
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error(err);
         setTeam(null);
         setPlayers([]);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [id]);
 
-  // Show loading while fetching
-  if (loading) {
-    return (
-      <div className="team-page">
-        <p>Loading...</p>
-      </div>
-    );
-  }
+  // Don't render anything until loading finishes
+  if (loading) return null;
 
+  // Show error if team not found
   if (!team) {
     return (
       <div className="team-page">

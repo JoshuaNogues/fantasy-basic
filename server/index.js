@@ -9,12 +9,16 @@ dotenv.config();
 const app = express();
 
 // Enable CORS for front-end
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173", // Vite default port
+}));
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
+// ==========================
 // Connect to MongoDB
+// ==========================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
   .catch((err) => console.log("MongoDB connection error:", err));
@@ -39,7 +43,8 @@ const Player = mongoose.model("Player", playerSchema);
 // Routes
 // ==========================
 
-// Teams
+// --- TEAMS ---
+// Get all teams
 app.get("/api/teams", async (req, res) => {
   try {
     const teams = await Team.find();
@@ -60,6 +65,7 @@ app.get("/api/teams/:id", async (req, res) => {
   }
 });
 
+// Create a new team
 app.post("/api/teams", async (req, res) => {
   try {
     const team = new Team(req.body);
@@ -70,21 +76,20 @@ app.post("/api/teams", async (req, res) => {
   }
 });
 
-// Players
+// --- PLAYERS ---
+// Get all players or filter by teamId
 app.get("/api/players", async (req, res) => {
   try {
     const { teamId } = req.query;
-
-    // If teamId is provided, filter players by team
     const query = teamId ? { teamId } : {};
     const players = await Player.find(query);
-
     res.json(players);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// Create a new player
 app.post("/api/players", async (req, res) => {
   try {
     const player = new Player(req.body);
