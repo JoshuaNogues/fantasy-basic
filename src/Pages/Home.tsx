@@ -31,12 +31,12 @@ export default function Home() {
 
       {/* Why Section */}
       <section className="why">
-        <h2>✨ Why VeeFive?</h2>
+        <h2>✨ Why Funtasy 5?</h2>
         <ul>
-          <li>✅ Easier for beginners — no confusing waiver wires</li>
+          <li>✅ Easier for beginners — you don't have to know every player</li>
           <li>✅ More strategic drafting — think like a GM</li>
           <li>✅ Track real team identities, not just individual stats</li>
-          <li>✅ Quick to play with friends or leagues</li>
+          <li>✅ Quick way to play with friends</li>
         </ul>
       </section>
 
