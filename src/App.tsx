@@ -85,7 +85,7 @@ useEffect(() => {
               className="nav-link"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Fantasy App
+              LM Tools
             </Link>
           </li>
 
