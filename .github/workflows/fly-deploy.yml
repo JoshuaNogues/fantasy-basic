@@ -17,6 +17,6 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       # Deploy from the server subfolder
-      - run: flyctl deploy --remote-only --config server/fly.toml -a fantasy-basic-backend
+      - run: flyctl deploy --remote-only --config server/fly.toml -a fantasy-basic-backend --token $FLY_API_TOKEN
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
