@@ -3,12 +3,16 @@ app = "fantasy-basic-backend"
 primary_region = "mia"
 
 # ========================
+# Build configuration
+# ========================
+[build]
+  # Use a Node.js image for building your backend
+  image = "node:20"  
 
 # ========================
 # HTTP service
 # ========================
 [http_service]
-  # Fly will route requests to this port
   internal_port = 5000
   force_https = true
 
