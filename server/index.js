@@ -1,4 +1,3 @@
-// server/index.js
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -11,15 +10,14 @@ const app = express();
 // ==========================
 // CORS Configuration
 // ==========================
-// Allow local dev, Netlify frontend, and Fly.io domain
 const allowedOrigins = [
-  "http://localhost:5173",              // Vite dev
-  "https://veefivefantasy.netlify.app", // Netlify prod
+  "http://localhost:5173",
+  "https://veefivefantasy.netlify.app",
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    console.log("Incoming request origin:", origin); // debug
+    console.log("Incoming request origin:", origin);
     if (!origin) return callback(null, true);
     if (allowedOrigins.some(o => origin.startsWith(o))) {
       return callback(null, true);
@@ -46,6 +44,11 @@ mongoose.connect(process.env.MONGO_URI)
 // ==========================
 const teamSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  lineup: {
+    type: Map,
+    of: mongoose.Schema.Types.ObjectId, // store player _id
+    default: {}, // keys: Passing, Rushing, Receiving, Defense, Kicking
+  },
 });
 
 const playerSchema = new mongoose.Schema({
@@ -88,6 +91,25 @@ app.post("/api/teams", async (req, res) => {
     res.json(team);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// --- UPDATE TEAM LINEUP ---
+app.patch("/api/teams/:id/lineup", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lineup } = req.body; // { Passing: playerId, Rushing: playerId, ... }
+
+    const team = await Team.findById(id);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    team.lineup = lineup;
+    await team.save();
+
+    res.json(team);
+  } catch (err) {
+    console.error("Error updating lineup:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
