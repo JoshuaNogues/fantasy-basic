@@ -21,7 +21,7 @@ type Lineup = {
   Receiving?: Player;
   Defense?: Player;
   Kicking?: Player;
-};
+}; 
 
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
