@@ -26,7 +26,6 @@ type Lineup = {
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
   const [team, setTeam] = useState<Team | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
   const [lineup, setLineup] = useState<Lineup>({});
   const [bench, setBench] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
