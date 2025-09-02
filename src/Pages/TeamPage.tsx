@@ -21,7 +21,7 @@ type Lineup = {
   Receiving?: Player;
   Defense?: Player;
   Kicking?: Player;
-}; 
+};
 
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +35,6 @@ export default function TeamPage() {
 
   const API_URL = import.meta.env.VITE_API_BASE;
 
-  // Save lineup to backend
   const saveLineup = async (newLineup: Lineup) => {
     try {
       await fetch(`${API_URL}/api/teams/${id}/lineup`, {
@@ -56,19 +55,16 @@ export default function TeamPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch team
         const teamRes = await fetch(`${API_URL}/api/teams/${id}`);
         if (!teamRes.ok) throw new Error(`Failed to fetch team: ${teamRes.status}`);
         const teamData = await teamRes.json();
         setTeam(teamData);
 
-        // Fetch players
         const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
         if (!playersRes.ok) throw new Error(`Failed to fetch players: ${playersRes.status}`);
         const teamPlayers = await playersRes.json();
-        const fetchedPlayers = teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} }));
+        const fetchedPlayers: Player[] = teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} }));
 
-        // Try fetching saved lineup from team.lineup
         let savedLineup: Lineup = {};
         let savedBench: Player[] = [];
 
@@ -80,13 +76,11 @@ export default function TeamPage() {
             ])
           ) as Lineup;
 
-          // Any players not in lineup go to bench
           savedBench = fetchedPlayers.filter(
             (p) => !Object.values(savedLineup).some((pl) => pl?._id === p._id)
           );
         }
 
-        // Default first 5 if no lineup
         if (
           !savedLineup.Passing &&
           !savedLineup.Rushing &&
@@ -94,10 +88,10 @@ export default function TeamPage() {
           !savedLineup.Defense &&
           !savedLineup.Kicking
         ) {
-          const starters = fetchedPlayers.slice(0, 5);
-          const benchPlayers = fetchedPlayers.slice(5);
+          const starters: Player[] = fetchedPlayers.slice(0, 5);
+          const benchPlayers: Player[] = fetchedPlayers.slice(5);
           const newLineup: Lineup = {};
-          starters.forEach((p) => {
+          starters.forEach((p: Player) => {
             if (p.name.includes("Passing") && !newLineup.Passing) newLineup.Passing = p;
             else if (p.name.includes("Rushing") && !newLineup.Rushing) newLineup.Rushing = p;
             else if (p.name.includes("Receiving") && !newLineup.Receiving) newLineup.Receiving = p;
@@ -138,12 +132,11 @@ export default function TeamPage() {
     );
   }
 
-  // Totals
   const starterTotal = Object.values(lineup).reduce(
-    (sum, p) => sum + (p?.points[selectedWeek] || 0),
+    (sum: number, p?: Player) => sum + (p?.points[selectedWeek] || 0),
     0
   );
-  const benchTotal = bench.reduce((sum, p) => sum + (p.points[selectedWeek] || 0), 0);
+  const benchTotal = bench.reduce((sum: number, p: Player) => sum + (p.points[selectedWeek] || 0), 0);
 
   const moveToBench = (slot: keyof Lineup) => {
     if (!lineup[slot]) return;
@@ -174,10 +167,7 @@ export default function TeamPage() {
   };
 
   const toggleEditing = () => {
-    if (editing) {
-      // Save lineup when done
-      saveLineup(lineup);
-    }
+    if (editing) saveLineup(lineup);
     setEditing(!editing);
   };
 
@@ -191,10 +181,7 @@ export default function TeamPage() {
         </button>
         <div className="form-row">
           <label>Select Week: </label>
-          <select
-            value={selectedWeek}
-            onChange={(e) => setSelectedWeek(e.target.value)}
-          >
+          <select value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
             {Array.from({ length: 17 }, (_, i) => (
               <option key={`week${i + 1}`} value={`week${i + 1}`}>
                 {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
@@ -204,7 +191,6 @@ export default function TeamPage() {
         </div>
       </div>
 
-      {/* Starters */}
       <section className="card-section">
         <h2>Starters</h2>
         <ul className="player-list">
@@ -221,12 +207,11 @@ export default function TeamPage() {
         <p><strong>Starter Total: {starterTotal}</strong></p>
       </section>
 
-      {/* Bench */}
       <section className="card-section">
         <h2>Bench</h2>
         {bench.length > 0 ? (
           <ul className="player-list">
-            {bench.map((p) => (
+            {bench.map((p: Player) => (
               <li key={p._id} className="player-card">
                 <strong>{p.name}</strong> – Points: {p.points[selectedWeek] || 0}
                 {editing && <button onClick={() => moveToLineup(p)}>Start</button>}
