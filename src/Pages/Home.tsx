@@ -7,7 +7,7 @@ export default function Home() {
       <section className="hero">
         <h1>🏈 Funtasy 5</h1>
         <p>The easiest way to play fantasy football — reimagined by team strengths. Brought to you by Fanzday.</p>
-        <Link to="/fantasy" className="cta-button">Start Playing</Link>
+        <Link to="/scoreboard" className="cta-button">View Scoreboard</Link>
       </section>
 
       {/* Features */}
