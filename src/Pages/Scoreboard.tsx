@@ -4,8 +4,9 @@ import { Link } from "react-router-dom";
 import "../App.css";
 
 interface Team {
-  _id: string; // MongoDB ID
+  _id: string;
   name: string;
+  lineup?: Record<string, string | null>; // Map of slot -> playerId
 }
 
 interface Player {
@@ -13,7 +14,13 @@ interface Player {
   name: string;
   teamId?: string;
   points: Record<string, number>;
-  isStarter?: boolean; // ✅ optional flag
+}
+
+// Explicit type for mapped team scores
+interface TeamScore extends Team {
+  starterTotal: number;
+  leadingScorer: Player | null;
+  leadingPoints: number;
 }
 
 export default function Scoreboard() {
@@ -31,15 +38,13 @@ export default function Scoreboard() {
           fetch(`${API_URL}/api/players`),
         ]);
 
-        if (!teamsRes.ok || !playersRes.ok) {
-          throw new Error("Failed to fetch data from backend");
-        }
+        if (!teamsRes.ok || !playersRes.ok) throw new Error("Failed to fetch data");
 
-        const teamsData = await teamsRes.json();
-        const playersData = await playersRes.json();
+        const teamsData: Team[] = await teamsRes.json();
+        const playersData: Player[] = await playersRes.json();
 
         setTeams(teamsData);
-        setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
+        setPlayers(playersData.map((p) => ({ ...p, points: p.points ?? {} })));
       } catch (err) {
         console.error("Error fetching data:", err);
       }
@@ -48,12 +53,21 @@ export default function Scoreboard() {
     fetchData();
   }, [API_URL]);
 
-  const teamScores = teams.map((t) => {
-    const teamPlayers = players.filter((p) => p.teamId === t._id);
+  // Compute starter totals and top starters based on lineup
+  const teamScores: TeamScore[] = teams.map((team) => {
+    const teamPlayers = players.filter((p) => p.teamId === team._id);
 
-    // ✅ starters = first 5, bench = rest
-    const starters = teamPlayers.slice(0, 5);
-    // const bench = teamPlayers.slice(5); // (we don’t need bench here)
+    // Grab starters from lineup
+    const starters: Player[] = [];
+    if (team.lineup) {
+      for (const slot of ["Passing", "Rushing", "Receiving", "Defense", "Kicking"]) {
+        const playerId = team.lineup[slot];
+        if (playerId) {
+          const player = teamPlayers.find((p) => p._id === playerId);
+          if (player) starters.push(player);
+        }
+      }
+    }
 
     const starterTotal = starters.reduce(
       (sum, p) => sum + (p.points[selectedWeek] || 0),
@@ -71,9 +85,9 @@ export default function Scoreboard() {
     });
 
     return {
-      ...t,
+      ...team,
       starterTotal,
-      leadingScorer: leadingScorer as Player | null,
+      leadingScorer,
       leadingPoints: maxPoints === -Infinity ? 0 : maxPoints,
     };
   });
@@ -112,7 +126,7 @@ export default function Scoreboard() {
                 </p>
                 {t.leadingScorer ? (
                   <p>
-                    ⭐ Top Starter: {t.leadingScorer.name} ({t.leadingPoints} pts)
+                    ⭐ Top Starter: {t.leadingScorer!.name} ({t.leadingPoints} pts)
                   </p>
                 ) : (
                   <p>No starters yet</p>
