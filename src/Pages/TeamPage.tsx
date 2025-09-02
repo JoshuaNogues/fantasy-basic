@@ -26,6 +26,7 @@ type Lineup = {
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
   const [team, setTeam] = useState<Team | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [lineup, setLineup] = useState<Lineup>({});
   const [bench, setBench] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
@@ -61,6 +62,7 @@ export default function TeamPage() {
 
         const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
         if (!playersRes.ok) throw new Error(`Failed to fetch players: ${playersRes.status}`);
+        console.log(players);
         const teamPlayers = await playersRes.json();
         const fetchedPlayers: Player[] = teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} }));
 
