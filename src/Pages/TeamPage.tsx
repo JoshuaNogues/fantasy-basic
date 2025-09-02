@@ -174,14 +174,12 @@ export default function TeamPage() {
 
   return (
     <div className="team-page">
-      <div className="team-header card-section">
-        <h1>{team.name}</h1>
-        <h2>Starter Total: {starterTotal}</h2>
-        <button className="btn-link" onClick={toggleEditing}>
-          {editing ? "Done" : "Edit Lineup"}
-        </button>
+      <div className="team-header">
+        <div className="team-name-total">
+          <h1>{team.name}</h1>
+          <h2>Points: {starterTotal}</h2>
+        </div>
         <div className="form-row">
-          <label>Select Week: </label>
           <select value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
             {Array.from({ length: 17 }, (_, i) => (
               <option key={`week${i + 1}`} value={`week${i + 1}`}>
@@ -193,13 +191,18 @@ export default function TeamPage() {
       </div>
 
       <section className="card-section">
+        <div className="team-name-total">
         <h2>Starters</h2>
+        <button className="btn-link" onClick={toggleEditing}>
+          {editing ? "Done" : "Edit Lineup"}
+        </button>
+        </div>
         <ul className="player-list">
           {(["Passing", "Rushing", "Receiving", "Defense", "Kicking"] as const).map(
             (slot) =>
               lineup[slot] && (
                 <li key={slot} className="player-card">
-                  <strong>{lineup[slot]!.name}</strong> – Points: {lineup[slot]!.points[selectedWeek] || 0}
+                  <strong>{lineup[slot]!.name}</strong> Points: {lineup[slot]!.points[selectedWeek] || 0}
                   {editing && <button onClick={() => moveToBench(slot)}>Bench</button>}
                 </li>
               )
@@ -209,12 +212,12 @@ export default function TeamPage() {
       </section>
 
       <section className="card-section">
-        <h2>Bench</h2>
+        <h2 className="bench-h2">Bench</h2>
         {bench.length > 0 ? (
           <ul className="player-list">
             {bench.map((p: Player) => (
               <li key={p._id} className="player-card">
-                <strong>{p.name}</strong> – Points: {p.points[selectedWeek] || 0}
+                <strong>{p.name}</strong> Points: {p.points[selectedWeek] || 0}
                 {editing && <button onClick={() => moveToLineup(p)}>Start</button>}
               </li>
             ))}

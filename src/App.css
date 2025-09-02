@@ -2,6 +2,7 @@
    ROOT & GLOBAL STYLES
    ====================================================== */
 #root {
+  width: 90vw;
   max-width: 1280px;
   margin: 0 auto;
   text-align: center;
@@ -16,6 +17,8 @@ body {
 
 .content {
   padding-top: 20px;
+  width: 90vw;
+  max-width: 1280px;
 }
 
 /* ======================================================
@@ -53,8 +56,8 @@ body {
 .navbar {
   width: 100%;               /* full width of viewport */
   max-width: none;           /* remove inherited max-width */
-  background: #009CA6;
-  border-bottom: 2px solid #009CA6;
+  background: #017981;
+  border-bottom: 2px solid #017981;
   padding: 16px 24px;
   box-sizing: border-box;    /* include padding in width */
   display: flex;
@@ -100,8 +103,8 @@ body {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  background: #111827;
-  border: 1px solid #1f2937;
+  background: #009CA6;
+  border: 1px solid #009CA6;
   border-radius: 8px;
   min-width: 180px;
   display: flex;
@@ -120,7 +123,8 @@ body {
 }
 
 .dropdown-item:hover {
-  background: #374151;
+  background: #017981;
+  color: #fff;
 }
 
 
@@ -148,7 +152,10 @@ body {
   transition: background 0.2s;
 }
 
-.cta-button:hover { background: #eab308; }
+.cta-button:hover { 
+  background: #007f88; 
+  color: #fff;
+}
 
 .features {
   text-align: center;
@@ -227,9 +234,8 @@ a {
    FANTASY PAGE
    ====================================================== */
 .fantasy-page {
-  max-width: 1000px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 20px;
 }
 
 .page-title {
@@ -286,6 +292,8 @@ input, select {
 }
 
 .team-card, .player-card {
+  display: flex;
+  justify-content:space-between;
   background: #f3f4f6;
   padding: 12px 16px;
   border-radius: 8px;
@@ -296,14 +304,38 @@ input, select {
    TEAM PAGE
    ====================================================== */
 .team-page {
-  max-width: 900px;
+  max-width: 500px;
   margin: 0 auto;
-  padding: 20px;
 }
 
 .team-header {
   text-align: center;
   margin-bottom: 30px;
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 40px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+.team-header > .form-row {
+  display: flex;
+  justify-content: end;
+}
+
+.team-name-total {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bench-h2 {
+  text-align: start;
+}
+
+.card-section p {
+  text-align: end;
 }
 
 /* reusing .form-row from Fantasy for week selector */
@@ -311,16 +343,16 @@ input, select {
 .player-list {
   list-style: none;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
+  display: flex;           /* switch from grid to flex */
+  flex-direction: column;  /* stack vertically */
+  gap: 12px;      
 }
 
 .player-card {
   background: #f3f4f6;
   padding: 12px 16px;
   border-radius: 8px;
-  text-align: center;
+  text-align: start;
 }
 
 .btn-link {
@@ -335,15 +367,17 @@ input, select {
   transition: background 0.2s;
 }
 
-.btn-link:hover { background: #007f88; }
+.btn-link:hover { 
+  background: #007f88; 
+  color: #fff;
+}
 
 /* ======================================================
    SCOREBOARD PAGE
    ====================================================== */
 .scoreboard-page {
-  max-width: 1000px;
+  max-width: 500px;
   margin: 0 auto;
-  padding: 20px;
 }
 
 .scoreboard-header {
@@ -352,18 +386,28 @@ input, select {
 }
 
 .team-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  display: flex;           /* switch from grid to flex */
+  flex-direction: column;  /* stack vertically */
+  gap: 12px;   
 }
 
 .team-card {
+  display: flex;
+  /* align-items: center; */
+  flex-direction: column;
   background: #f3f4f6;
   border-radius: 8px;
   padding: 16px;
   text-align: center;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.teamname-points {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items:center
 }
 
 .team-card:hover {
@@ -507,6 +551,10 @@ input, select {
   font-size: 1.3rem;
 }
 
+.player-card {
+  font-size: .95rem;
+} 
+
 .form-row label {
   font-size: 1rem;
 }
@@ -532,7 +580,7 @@ input, select {
   .btn,
   .btn-link,
   .cta-button {
-    width: 100%;
+
     padding: 10px;
   }
 }

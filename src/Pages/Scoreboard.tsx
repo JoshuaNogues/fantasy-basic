@@ -118,15 +118,17 @@ export default function Scoreboard() {
           <div className="team-grid">
             {sortedTeams.map((t) => (
               <div key={t._id} className="team-card">
+                <div className="teamname-points">
                 <h2>
                   <Link to={`/team/${t._id}`}>{t.name}</Link>
                 </h2>
                 <p>
-                  Starter Total: <strong>{t.starterTotal}</strong>
+                  Points: <strong>{t.starterTotal}</strong>
                 </p>
+                </div>
                 {t.leadingScorer ? (
                   <p>
-                    ⭐ Top Starter: {t.leadingScorer!.name} ({t.leadingPoints} pts)
+                    ⭐ {t.leadingScorer!.name} ({t.leadingPoints} pts)
                   </p>
                 ) : (
                   <p>No starters yet</p>

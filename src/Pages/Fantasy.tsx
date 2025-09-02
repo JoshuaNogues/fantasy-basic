@@ -134,7 +134,7 @@ useEffect(() => {
           <button className="btn" onClick={addTeam}>Add Team</button>
         </div>
 
-        <h3>Your Teams</h3>
+        <h3>Current Teams</h3>
         <ul className="team-list">
           {teams.map((t) => (
             <li key={t._id} className="team-card">
@@ -164,17 +164,6 @@ useEffect(() => {
           </select>
           <button className="btn" onClick={addPlayer}>Add Player</button>
         </div>
-
-        <h3>All Players</h3>
-        <ul className="player-list">
-          {players.map((p) => (
-            <li key={p._id} className="player-card">
-              <strong>{p.name}</strong>{" "}
-              {p.teamId ? `(Team: ${teams.find((t) => t._id === p.teamId)?.name})` : "(Unassigned)"}{" "}
-              – Points: {p.points[selectedWeek] || 0}
-            </li>
-          ))}
-        </ul>
       </section>
 
       {/* Set Points Section */}
