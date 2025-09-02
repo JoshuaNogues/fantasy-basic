@@ -13,6 +13,7 @@ interface Player {
   name: string;
   teamId?: string;
   points: Record<string, number>;
+  isStarter?: boolean; // ✅ optional flag
 }
 
 export default function Scoreboard() {
@@ -20,43 +21,48 @@ export default function Scoreboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
 
-const API_URL = import.meta.env.VITE_API_BASE; // ✅ corrected
+  const API_URL = import.meta.env.VITE_API_BASE;
 
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const [teamsRes, playersRes] = await Promise.all([
-        fetch(`${API_URL}/api/teams`),
-        fetch(`${API_URL}/api/players`),
-      ]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [teamsRes, playersRes] = await Promise.all([
+          fetch(`${API_URL}/api/teams`),
+          fetch(`${API_URL}/api/players`),
+        ]);
 
-      if (!teamsRes.ok || !playersRes.ok) {
-        throw new Error("Failed to fetch data from backend");
+        if (!teamsRes.ok || !playersRes.ok) {
+          throw new Error("Failed to fetch data from backend");
+        }
+
+        const teamsData = await teamsRes.json();
+        const playersData = await playersRes.json();
+
+        setTeams(teamsData);
+        setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
+      } catch (err) {
+        console.error("Error fetching data:", err);
       }
+    };
 
-      const teamsData = await teamsRes.json();
-      const playersData = await playersRes.json();
-
-      setTeams(teamsData);
-      setPlayers(playersData.map((p: any) => ({ ...p, points: p.points ?? {} })));
-    } catch (err) {
-      console.error("Error fetching data:", err);
-    }
-  };
-
-  fetchData();
-}, [API_URL]);
+    fetchData();
+  }, [API_URL]);
 
   const teamScores = teams.map((t) => {
     const teamPlayers = players.filter((p) => p.teamId === t._id);
-    const total = teamPlayers.reduce(
+
+    // ✅ starters = first 5, bench = rest
+    const starters = teamPlayers.slice(0, 5);
+    // const bench = teamPlayers.slice(5); // (we don’t need bench here)
+
+    const starterTotal = starters.reduce(
       (sum, p) => sum + (p.points[selectedWeek] || 0),
       0
     );
 
     let leadingScorer: Player | null = null;
     let maxPoints = -Infinity;
-    teamPlayers.forEach((p) => {
+    starters.forEach((p) => {
       const pts = p.points[selectedWeek] || 0;
       if (pts > maxPoints) {
         maxPoints = pts;
@@ -66,13 +72,13 @@ useEffect(() => {
 
     return {
       ...t,
-      total,
+      starterTotal,
       leadingScorer: leadingScorer as Player | null,
       leadingPoints: maxPoints === -Infinity ? 0 : maxPoints,
     };
   });
 
-  const sortedTeams = [...teamScores].sort((a, b) => b.total - a.total);
+  const sortedTeams = [...teamScores].sort((a, b) => b.starterTotal - a.starterTotal);
 
   return (
     <div className="scoreboard-page">
@@ -101,13 +107,15 @@ useEffect(() => {
                 <h2>
                   <Link to={`/team/${t._id}`}>{t.name}</Link>
                 </h2>
-                <p>Total Points: <strong>{t.total}</strong></p>
+                <p>
+                  Starter Total: <strong>{t.starterTotal}</strong>
+                </p>
                 {t.leadingScorer ? (
                   <p>
-                    ⭐ Top Scorer: {t.leadingScorer.name} ({t.leadingPoints} pts)
+                    ⭐ Top Starter: {t.leadingScorer.name} ({t.leadingPoints} pts)
                   </p>
                 ) : (
-                  <p>No players yet</p>
+                  <p>No starters yet</p>
                 )}
               </div>
             ))}

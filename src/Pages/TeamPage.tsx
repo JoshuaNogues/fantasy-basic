@@ -74,27 +74,27 @@ export default function TeamPage() {
 
   const starterTotal = calcTotal(starters);
   const benchTotal = calcTotal(bench);
-  const teamTotal = starterTotal + benchTotal;
 
   return (
     <div className="team-page">
       <div className="team-header card-section">
-        <h1>{team.name}</h1>
-        <h2>Total Points: {teamTotal}</h2>
-        <div className="form-row">
-          <label>Select Week: </label>
-          <select
-            value={selectedWeek}
-            onChange={(e) => setSelectedWeek(e.target.value)}
-          >
-            {Array.from({ length: 17 }, (_, i) => (
-              <option key={`week${i + 1}`} value={`week${i + 1}`}>
-                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+  <h1>{team.name}</h1>
+  <h2>Starter Total: {starterTotal}</h2>   {/* 👈 replaced total points */}
+  <div className="form-row">
+    <label>Select Week: </label>
+    <select
+      value={selectedWeek}
+      onChange={(e) => setSelectedWeek(e.target.value)}
+    >
+      {Array.from({ length: 17 }, (_, i) => (
+        <option key={`week${i + 1}`} value={`week${i + 1}`}>
+          {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
+
 
       {/* Starters */}
       <section className="card-section">
