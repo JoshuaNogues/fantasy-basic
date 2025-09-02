@@ -120,7 +120,7 @@ useEffect(() => {
 
   return (
     <div className="fantasy-page">
-      <h1 className="page-title">Fantasy Dashboard</h1>
+      <h1 className="page-title">LM Tools Dashboard</h1>
 
       {/* Teams Section */}
       <section className="card-section">

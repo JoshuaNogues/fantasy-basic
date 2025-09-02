@@ -130,8 +130,8 @@ export default function TeamPage() {
         <p><strong>Bench Total: {benchTotal}</strong></p>
       </section>
 
-      <Link className="btn-link" to="/fantasy">
-        ⬅ Back to Fantasy
+      <Link className="btn-link" to="/scoreboard">
+        ⬅ Back to Scoreboard
       </Link>
     </div>
   );
