@@ -22,35 +22,34 @@ export default function TeamPage() {
   const [selectedWeek, setSelectedWeek] = useState("week1");
   const [loading, setLoading] = useState(true);
 
-  const API_URL = import.meta.env.VITE_API_BASE; // ✅ corrected
+  const API_URL = import.meta.env.VITE_API_BASE;
 
-useEffect(() => {
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fetch team
-      const teamRes = await fetch(`${API_URL}/api/teams/${id}`);
-      if (!teamRes.ok) throw new Error(`Failed to fetch team: ${teamRes.status}`);
-      const teamData = await teamRes.json();
-      setTeam(teamData);
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch team
+        const teamRes = await fetch(`${API_URL}/api/teams/${id}`);
+        if (!teamRes.ok) throw new Error(`Failed to fetch team: ${teamRes.status}`);
+        const teamData = await teamRes.json();
+        setTeam(teamData);
 
-      // Fetch only players for this team
-      const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
-      if (!playersRes.ok) throw new Error(`Failed to fetch players: ${playersRes.status}`);
-      const teamPlayers = await playersRes.json();
-      setPlayers(teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} })));
-    } catch (err) {
-      console.error(err);
-      setTeam(null);
-      setPlayers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Fetch only players for this team
+        const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
+        if (!playersRes.ok) throw new Error(`Failed to fetch players: ${playersRes.status}`);
+        const teamPlayers = await playersRes.json();
+        setPlayers(teamPlayers.map((p: any) => ({ ...p, points: p.points ?? {} })));
+      } catch (err) {
+        console.error(err);
+        setTeam(null);
+        setPlayers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchData();
-}, [id, API_URL]);
-
+    fetchData();
+  }, [id, API_URL]);
 
   if (loading) return null;
 
@@ -65,10 +64,17 @@ useEffect(() => {
     );
   }
 
-  const teamTotal = players.reduce(
-    (sum, p) => sum + (p.points[selectedWeek] || 0),
-    0
-  );
+  // Split players: first 5 starters, rest bench
+  const starters = players.slice(0, 5);
+  const bench = players.slice(5);
+
+  // Calculate totals
+  const calcTotal = (group: Player[]) =>
+    group.reduce((sum, p) => sum + (p.points[selectedWeek] || 0), 0);
+
+  const starterTotal = calcTotal(starters);
+  const benchTotal = calcTotal(bench);
+  const teamTotal = starterTotal + benchTotal;
 
   return (
     <div className="team-page">
@@ -90,19 +96,38 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* Starters */}
       <section className="card-section">
-        <h2>Players</h2>
-        {players.length > 0 ? (
+        <h2>Starters</h2>
+        {starters.length > 0 ? (
           <ul className="player-list">
-            {players.map((p) => (
+            {starters.map((p) => (
               <li key={p._id} className="player-card">
                 <strong>{p.name}</strong> – Points: {p.points[selectedWeek] || 0}
               </li>
             ))}
           </ul>
         ) : (
-          <p>No players assigned yet.</p>
+          <p>No starters assigned yet.</p>
         )}
+        <p><strong>Starter Total: {starterTotal}</strong></p>
+      </section>
+
+      {/* Bench */}
+      <section className="card-section">
+        <h2>Bench</h2>
+        {bench.length > 0 ? (
+          <ul className="player-list">
+            {bench.map((p) => (
+              <li key={p._id} className="player-card">
+                <strong>{p.name}</strong> – Points: {p.points[selectedWeek] || 0}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No bench players assigned yet.</p>
+        )}
+        <p><strong>Bench Total: {benchTotal}</strong></p>
       </section>
 
       <Link className="btn-link" to="/fantasy">
