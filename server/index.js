@@ -49,6 +49,11 @@ const teamSchema = new mongoose.Schema({
     of: mongoose.Schema.Types.ObjectId, // store player _id
     default: {}, // keys: Passing, Rushing, Receiving, Defense, Kicking
   },
+  record: {
+    type: Map,
+    of: String, // "W" or "L"
+    default: {},
+  },
 });
 
 const playerSchema = new mongoose.Schema({
@@ -68,7 +73,7 @@ const Player = mongoose.model("Player", playerSchema);
 app.get("/api/teams", async (req, res) => {
   try {
     const teams = await Team.find();
-    res.json(teams);
+    res.json(teams.map(t => ({ ...t.toObject(), record: Object.fromEntries(t.record) })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -78,7 +83,7 @@ app.get("/api/teams/:id", async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
     if (!team) return res.status(404).json({ error: "Team not found" });
-    res.json(team);
+    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -88,7 +93,7 @@ app.post("/api/teams", async (req, res) => {
   try {
     const team = new Team(req.body);
     await team.save();
-    res.json(team);
+    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -106,9 +111,32 @@ app.patch("/api/teams/:id/lineup", async (req, res) => {
     team.lineup = lineup;
     await team.save();
 
-    res.json(team);
+    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
   } catch (err) {
     console.error("Error updating lineup:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// --- UPDATE TEAM RECORD ---
+app.patch("/api/teams/:id/record", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { week, result } = req.body;
+
+    if (!week || !["W", "L"].includes(result)) {
+      return res.status(400).json({ message: "Valid week and result ('W' or 'L') required" });
+    }
+
+    const team = await Team.findById(id);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    team.record.set(week, result);
+    await team.save();
+
+    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
+  } catch (err) {
+    console.error("Error updating record:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -119,7 +147,7 @@ app.get("/api/players", async (req, res) => {
     const { teamId } = req.query;
     const query = teamId ? { teamId } : {};
     const players = await Player.find(query);
-    res.json(players);
+    res.json(players.map(p => ({ ...p.toObject(), points: Object.fromEntries(p.points) })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -129,7 +157,7 @@ app.post("/api/players", async (req, res) => {
   try {
     const player = new Player(req.body);
     await player.save();
-    res.json(player);
+    res.json({ ...player.toObject(), points: Object.fromEntries(player.points) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -150,7 +178,7 @@ app.patch("/api/players/:id/points", async (req, res) => {
     player.points.set(week, points);
     await player.save();
 
-    res.json(player);
+    res.json({ ...player.toObject(), points: Object.fromEntries(player.points) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -162,5 +190,4 @@ app.patch("/api/players/:id/points", async (req, res) => {
 // ==========================
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Backend live! Use your Fly.io URL as the API base for frontend.`);
 });
