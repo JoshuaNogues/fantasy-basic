@@ -18,7 +18,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, callback) => {
     console.log("Incoming request origin:", origin);
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // allow non-browser requests
     if (allowedOrigins.some(o => origin.startsWith(o))) {
       return callback(null, true);
     } else {
@@ -30,14 +30,15 @@ app.use(cors({
 
 app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
+const HOST = "0.0.0.0";
 
 // ==========================
 // Connect to MongoDB Atlas
 // ==========================
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
-  .catch((err) => console.log("MongoDB connection error:", err));
+  .catch(err => console.log("MongoDB connection error:", err));
 
 // ==========================
 // Mongoose Schemas
@@ -46,12 +47,12 @@ const teamSchema = new mongoose.Schema({
   name: { type: String, required: true },
   lineup: {
     type: Map,
-    of: mongoose.Schema.Types.ObjectId, // store player _id
-    default: {}, // keys: Passing, Rushing, Receiving, Defense, Kicking
+    of: mongoose.Schema.Types.ObjectId,
+    default: {},
   },
   record: {
     type: Map,
-    of: String, // "W" or "L"
+    of: String,
     default: {},
   },
 });
@@ -69,7 +70,7 @@ const Player = mongoose.model("Player", playerSchema);
 // Routes
 // ==========================
 
-// --- TEAMS ---
+// TEAMS
 app.get("/api/teams", async (req, res) => {
   try {
     const teams = await Team.find();
@@ -99,11 +100,11 @@ app.post("/api/teams", async (req, res) => {
   }
 });
 
-// --- UPDATE TEAM LINEUP ---
+// UPDATE TEAM LINEUP
 app.patch("/api/teams/:id/lineup", async (req, res) => {
   try {
     const { id } = req.params;
-    const { lineup } = req.body; // { Passing: playerId, Rushing: playerId, ... }
+    const { lineup } = req.body;
 
     const team = await Team.findById(id);
     if (!team) return res.status(404).json({ message: "Team not found" });
@@ -118,7 +119,7 @@ app.patch("/api/teams/:id/lineup", async (req, res) => {
   }
 });
 
-// --- UPDATE TEAM RECORD ---
+// UPDATE TEAM RECORD
 app.patch("/api/teams/:id/record", async (req, res) => {
   try {
     const { id } = req.params;
@@ -141,7 +142,7 @@ app.patch("/api/teams/:id/record", async (req, res) => {
   }
 });
 
-// --- PLAYERS ---
+// PLAYERS
 app.get("/api/players", async (req, res) => {
   try {
     const { teamId } = req.query;
@@ -188,6 +189,6 @@ app.patch("/api/players/:id/points", async (req, res) => {
 // ==========================
 // Start server
 // ==========================
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });

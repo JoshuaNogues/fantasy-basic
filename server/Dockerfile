@@ -8,17 +8,17 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install --production
+RUN npm install
 
 # Copy app source
 COPY . .
 
 # Set environment variable for production
 ENV NODE_ENV=production
-ENV PORT=5000
+ENV PORT=8080
 
 # Expose port
-EXPOSE 5000
+EXPOSE 8080
 
 # Start the server
 CMD ["node", "index.js"]
