@@ -134,7 +134,7 @@ body {
 .hero {
   text-align: center;
   padding: 80px 20px;
-  background: linear-gradient(135deg, #1ca3b4, #010101);
+  background: linear-gradient(135deg, #1ca3b4, #014c52);
   color: white;
   border-radius: 12px;
 }
@@ -457,7 +457,7 @@ input, select {
   .navlist {
     display: none; /* hide menu by default on mobile */
     flex-direction: column;
-    background: #007f88;
+    background: #1ca3b4;
     position: absolute;
     top: 64px; /* below navbar */
     left: 0;
@@ -481,7 +481,7 @@ input, select {
   top: 100%;       /* put directly below parent */
   left: 0;         /* align left edge of parent */
   margin-top: 8px; /* optional small spacing */
-  background: #007f88;
+  background: #1ca3b4;
   border: 1px solid #A2AAAD;
   border-radius: 8px;
   min-width: 180px;
