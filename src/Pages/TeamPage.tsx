@@ -70,6 +70,7 @@ export default function TeamPage() {
         const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
         if (!playersRes.ok)
           throw new Error(`Failed to fetch players: ${playersRes.status}`);
+        console.log(players);
         const teamPlayers = await playersRes.json();
         const fetchedPlayers: Player[] = teamPlayers.map((p: any) => ({
           ...p,
