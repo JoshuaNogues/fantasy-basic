@@ -38,7 +38,8 @@ export default function Scoreboard() {
           fetch(`${API_URL}/api/players`),
         ]);
 
-        if (!teamsRes.ok || !playersRes.ok) throw new Error("Failed to fetch data");
+        if (!teamsRes.ok || !playersRes.ok)
+          throw new Error("Failed to fetch data");
 
         const teamsData: Team[] = await teamsRes.json();
         const playersData: Player[] = await playersRes.json();
@@ -60,7 +61,13 @@ export default function Scoreboard() {
     // Grab starters from lineup
     const starters: Player[] = [];
     if (team.lineup) {
-      for (const slot of ["Passing", "Rushing", "Receiving", "Defense", "Kicking"]) {
+      for (const slot of [
+        "Passing",
+        "Rushing",
+        "Receiving",
+        "Defense",
+        "Kicking",
+      ]) {
         const playerId = team.lineup[slot];
         if (playerId) {
           const player = teamPlayers.find((p) => p._id === playerId);
@@ -92,7 +99,9 @@ export default function Scoreboard() {
     };
   });
 
-  const sortedTeams = [...teamScores].sort((a, b) => b.starterTotal - a.starterTotal);
+  const sortedTeams = [...teamScores].sort(
+    (a, b) => b.starterTotal - a.starterTotal
+  );
 
   return (
     <div className="scoreboard-page">
@@ -112,23 +121,23 @@ export default function Scoreboard() {
           </select>
         </div>
       </div>
-
       <section className="card-section">
         {sortedTeams.length > 0 ? (
           <div className="team-grid">
             {sortedTeams.map((t) => (
               <div key={t._id} className="team-card">
                 <div className="teamname-points">
-                <h2>
-                  <Link to={`/team/${t._id}`}>{t.name}</Link>
-                </h2>
-                <p>
-                  Points: <strong>{t.starterTotal}</strong>
-                </p>
+                  <h2>
+                    <Link to={`/team/${t._id}`}>{t.name}</Link>
+                  </h2>
+                  <p>
+                    Points: <strong>{t.starterTotal.toFixed(2)}</strong>
+                  </p>
                 </div>
                 {t.leadingScorer ? (
                   <p>
-                    ⭐ {t.leadingScorer!.name} ({t.leadingPoints} pts)
+                    ⭐ {t.leadingScorer!.name} ({t.leadingPoints.toFixed(2)}{" "}
+                    pts)
                   </p>
                 ) : (
                   <p>No starters yet</p>
@@ -140,10 +149,10 @@ export default function Scoreboard() {
           <p>No teams yet.</p>
         )}
       </section>
-
       <Link className="btn-link" to="/fantasy">
-        ⬅ Back to Fantasy
-      </Link>
+        {" "}
+        ⬅ Back to Fantasy{" "}
+      </Link>{" "}
     </div>
   );
 }

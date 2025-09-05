@@ -177,7 +177,7 @@ export default function TeamPage() {
       <div className="team-header">
         <div className="team-name-total">
           <h1>{team.name}</h1>
-          <h2>Points: {starterTotal}</h2>
+          <h2>Points: {starterTotal.toFixed(2)}</h2>
         </div>
         <div className="form-row">
           <select value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}>
@@ -192,23 +192,24 @@ export default function TeamPage() {
 
       <section className="card-section">
         <div className="team-name-total">
-        <h2>Starters</h2>
-        <button className="btn-link" onClick={toggleEditing}>
-          {editing ? "Done" : "Edit Lineup"}
-        </button>
+          <h2>Starters</h2>
+          <button className="btn-link" onClick={toggleEditing}>
+            {editing ? "Done" : "Edit Lineup"}
+          </button>
         </div>
         <ul className="player-list">
           {(["Passing", "Rushing", "Receiving", "Defense", "Kicking"] as const).map(
             (slot) =>
               lineup[slot] && (
                 <li key={slot} className="player-card">
-                  <strong>{lineup[slot]!.name}</strong> Points: {lineup[slot]!.points[selectedWeek] || 0}
+                  <strong>{lineup[slot]!.name}</strong> Points:{" "}
+                  {(lineup[slot]!.points[selectedWeek] || 0).toFixed(2)}
                   {editing && <button onClick={() => moveToBench(slot)}>Bench</button>}
                 </li>
               )
           )}
         </ul>
-        <p><strong>Starter Total: {starterTotal}</strong></p>
+        <p><strong>Starter Total: {starterTotal.toFixed(2)}</strong></p>
       </section>
 
       <section className="card-section">
@@ -217,7 +218,7 @@ export default function TeamPage() {
           <ul className="player-list">
             {bench.map((p: Player) => (
               <li key={p._id} className="player-card">
-                <strong>{p.name}</strong> Points: {p.points[selectedWeek] || 0}
+                <strong>{p.name}</strong> Points: {(p.points[selectedWeek] || 0).toFixed(2)}
                 {editing && <button onClick={() => moveToLineup(p)}>Start</button>}
               </li>
             ))}
@@ -225,7 +226,7 @@ export default function TeamPage() {
         ) : (
           <p>No bench players assigned yet.</p>
         )}
-        <p><strong>Bench Total: {benchTotal}</strong></p>
+        <p><strong>Bench Total: {benchTotal.toFixed(2)}</strong></p>
       </section>
 
       <Link className="btn-link" to="/scoreboard">
