@@ -15,18 +15,20 @@ const allowedOrigins = [
   "https://veefivefantasy.netlify.app",
 ];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    console.log("Incoming request origin:", origin);
-    if (!origin) return callback(null, true); // allow non-browser requests
-    if (allowedOrigins.some(o => origin.startsWith(o))) {
-      return callback(null, true);
-    } else {
-      console.warn("Blocked by CORS:", origin);
-      return callback(new Error("Not allowed by CORS"));
-    }
-  }
-}));
+// app.use(cors({
+//   origin: (origin, callback) => {
+//     console.log("Incoming request origin:", origin);
+//     if (!origin) return callback(null, true); // allow non-browser requests
+//     if (allowedOrigins.includes(origin)) {
+//       return callback(null, true);
+//     } else {
+//       console.warn("Blocked by CORS:", origin);
+//       return callback(new Error("Not allowed by CORS"));
+//     }
+//   }
+// }));
+
+app.use(cors({ origin: true }));
 
 app.use(express.json());
 
@@ -36,9 +38,10 @@ const HOST = "0.0.0.0";
 // ==========================
 // Connect to MongoDB Atlas
 // ==========================
-mongoose.connect(process.env.MONGO_URI)
+mongoose
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected ✅"))
-  .catch(err => console.log("MongoDB connection error:", err));
+  .catch((err) => console.log("MongoDB connection error:", err));
 
 // ==========================
 // Mongoose Schemas
@@ -74,7 +77,13 @@ const Player = mongoose.model("Player", playerSchema);
 app.get("/api/teams", async (req, res) => {
   try {
     const teams = await Team.find();
-    res.json(teams.map(t => ({ ...t.toObject(), record: Object.fromEntries(t.record) })));
+    res.json(
+      teams.map((t) => ({
+        ...t.toObject(),
+        record: Object.fromEntries(t.record),
+        lineup: Object.fromEntries(t.lineup), // ✅ convert lineup
+      }))
+    );
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -84,7 +93,12 @@ app.get("/api/teams/:id", async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
     if (!team) return res.status(404).json({ error: "Team not found" });
-    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
+
+    res.json({
+      ...team.toObject(),
+      record: Object.fromEntries(team.record),
+      lineup: Object.fromEntries(team.lineup), // ✅ convert lineup
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -94,7 +108,11 @@ app.post("/api/teams", async (req, res) => {
   try {
     const team = new Team(req.body);
     await team.save();
-    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
+    res.json({
+      ...team.toObject(),
+      record: Object.fromEntries(team.record),
+      lineup: Object.fromEntries(team.lineup),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -112,7 +130,11 @@ app.patch("/api/teams/:id/lineup", async (req, res) => {
     team.lineup = lineup;
     await team.save();
 
-    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
+    res.json({
+      ...team.toObject(),
+      record: Object.fromEntries(team.record),
+      lineup: Object.fromEntries(team.lineup),
+    });
   } catch (err) {
     console.error("Error updating lineup:", err);
     res.status(500).json({ message: "Server error" });
@@ -126,7 +148,9 @@ app.patch("/api/teams/:id/record", async (req, res) => {
     const { week, result } = req.body;
 
     if (!week || !["W", "L"].includes(result)) {
-      return res.status(400).json({ message: "Valid week and result ('W' or 'L') required" });
+      return res
+        .status(400)
+        .json({ message: "Valid week and result ('W' or 'L') required" });
     }
 
     const team = await Team.findById(id);
@@ -135,7 +159,11 @@ app.patch("/api/teams/:id/record", async (req, res) => {
     team.record.set(week, result);
     await team.save();
 
-    res.json({ ...team.toObject(), record: Object.fromEntries(team.record) });
+    res.json({
+      ...team.toObject(),
+      record: Object.fromEntries(team.record),
+      lineup: Object.fromEntries(team.lineup),
+    });
   } catch (err) {
     console.error("Error updating record:", err);
     res.status(500).json({ message: "Server error" });
@@ -148,7 +176,12 @@ app.get("/api/players", async (req, res) => {
     const { teamId } = req.query;
     const query = teamId ? { teamId } : {};
     const players = await Player.find(query);
-    res.json(players.map(p => ({ ...p.toObject(), points: Object.fromEntries(p.points) })));
+    res.json(
+      players.map((p) => ({
+        ...p.toObject(),
+        points: Object.fromEntries(p.points),
+      }))
+    );
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -158,7 +191,10 @@ app.post("/api/players", async (req, res) => {
   try {
     const player = new Player(req.body);
     await player.save();
-    res.json({ ...player.toObject(), points: Object.fromEntries(player.points) });
+    res.json({
+      ...player.toObject(),
+      points: Object.fromEntries(player.points),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -170,7 +206,9 @@ app.patch("/api/players/:id/points", async (req, res) => {
     const { week, points } = req.body;
 
     if (!week || typeof points !== "number") {
-      return res.status(400).json({ message: "Week and points are required" });
+      return res
+        .status(400)
+        .json({ message: "Week and points are required" });
     }
 
     const player = await Player.findById(id);
@@ -179,7 +217,10 @@ app.patch("/api/players/:id/points", async (req, res) => {
     player.points.set(week, points);
     await player.save();
 
-    res.json({ ...player.toObject(), points: Object.fromEntries(player.points) });
+    res.json({
+      ...player.toObject(),
+      points: Object.fromEntries(player.points),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

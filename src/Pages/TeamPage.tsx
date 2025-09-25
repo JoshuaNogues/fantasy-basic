@@ -1,13 +1,13 @@
 // src/Pages/TeamPage.tsx
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "../App.css";
 
 interface Team {
   _id: string;
   name: string;
   lineup?: Record<string, string | null>;
-  record?: Record<string, "W" | "L">; // week -> "W" or "L"
+  record?: Record<string, "W" | "L">;
 }
 
 interface Player {
@@ -17,123 +17,189 @@ interface Player {
   points: Record<string, number>;
 }
 
-type Lineup = {
-  Passing?: Player;
-  Rushing?: Player;
-  Receiving?: Player;
-  Defense?: Player;
-  Kicking?: Player;
+const LINEUP_SLOTS = ["Passing", "Rushing", "Receiving", "Defense", "Kicking"] as const;
+type LineupSlot = (typeof LINEUP_SLOTS)[number];
+type Lineup = Partial<Record<LineupSlot, Player>>;
+
+const extractPlayerId = (value: unknown): string | null => {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    if (value && typeof (value as { $oid?: unknown }).$oid === "string") {
+      return (value as { $oid: string }).$oid;
+    }
+    if (value && "toString" in value) {
+      const stringified = (value as { toString: () => string }).toString();
+      if (stringified && stringified !== "[object Object]") return stringified;
+    }
+  }
+  return null;
 };
+
+const inferSlotFromPlayer = (player: Player): LineupSlot | null => {
+  if (player.name.includes("Passing")) return "Passing";
+  if (player.name.includes("Rushing")) return "Rushing";
+  if (player.name.includes("Receiving")) return "Receiving";
+  if (player.name.includes("Defense")) return "Defense";
+  if (player.name.includes("Kicking")) return "Kicking";
+  return null;
+};
+
+const mapServerLineup = (rawLineup: Team["lineup"], roster: Player[]): Lineup => {
+  const starters: Lineup = {};
+  if (!rawLineup) return starters;
+
+  for (const slot of LINEUP_SLOTS) {
+    const playerId = extractPlayerId((rawLineup as Record<string, unknown>)[slot]);
+    if (!playerId) continue;
+    const player = roster.find((p) => p._id === playerId);
+    if (player) starters[slot] = player;
+  }
+
+  return starters;
+};
+
+const buildDefaultLineup = (roster: Player[]): Lineup => {
+  const starters: Lineup = {};
+  const taken = new Set<string>();
+
+  roster.forEach((player) => {
+    const slot = inferSlotFromPlayer(player);
+    if (slot && !starters[slot]) {
+      starters[slot] = player;
+      taken.add(player._id);
+    }
+  });
+
+  for (const slot of LINEUP_SLOTS) {
+    if (!starters[slot]) {
+      const fallback = roster.find((player) => !taken.has(player._id));
+      if (fallback) {
+        starters[slot] = fallback;
+        taken.add(fallback._id);
+      }
+    }
+  }
+
+  return starters;
+};
+
+const lineupToPayload = (lineup: Lineup) =>
+  Object.fromEntries(
+    LINEUP_SLOTS.map((slot) => [slot, lineup[slot]?._id ?? null])
+  );
 
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
   const [team, setTeam] = useState<Team | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [lineup, setLineup] = useState<Lineup>({});
-  const [bench, setBench] = useState<Player[]>([]);
   const [selectedWeek, setSelectedWeek] = useState("week1");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_BASE;
-  // const API_URL = "http://localhost:5000";
 
-  const saveLineup = async (newLineup: Lineup) => {
+  const bench = useMemo(() => {
+    if (!players.length) return [] as Player[];
+    const starterIds = new Set(
+      LINEUP_SLOTS.map((slot) => lineup[slot]?._id).filter(Boolean) as string[]
+    );
+    return players.filter((player) => !starterIds.has(player._id));
+  }, [players, lineup]);
+
+  const saveLineup = async (lineupToSave: Lineup, rosterOverride?: Player[]) => {
+    if (!id) return;
+    const roster = rosterOverride ?? players;
+
     try {
-      await fetch(`${API_URL}/api/teams/${id}/lineup`, {
+      const response = await fetch(`${API_URL}/api/teams/${id}/lineup`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lineup: Object.fromEntries(
-            Object.entries(newLineup).map(([slot, player]) => [
-              slot,
-              player?._id || null,
-            ])
-          ),
-        }),
+        body: JSON.stringify({ lineup: lineupToPayload(lineupToSave) }),
       });
-    } catch (err) {
-      console.error("Failed to save lineup", err);
+
+      if (!response.ok) {
+        throw new Error(`Failed to save lineup: ${response.status}`);
+      }
+
+      const updatedTeam: Team = await response.json();
+      setTeam(updatedTeam);
+
+      const synced = mapServerLineup(updatedTeam.lineup, roster);
+      if (Object.keys(synced).length) {
+        setLineup(synced);
+      }
+    } catch (error) {
+      console.error("Failed to save lineup", error);
     }
   };
 
   useEffect(() => {
+    if (!id) {
+      setTeam(null);
+      setPlayers([]);
+      setLineup({});
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
     const fetchData = async () => {
       setLoading(true);
       try {
-        const teamRes = await fetch(`${API_URL}/api/teams/${id}`);
-        if (!teamRes.ok)
-          throw new Error(`Failed to fetch team: ${teamRes.status}`);
-        const teamData = await teamRes.json();
-        setTeam(teamData);
+        const [teamRes, playersRes] = await Promise.all([
+          fetch(`${API_URL}/api/teams/${id}`),
+          fetch(`${API_URL}/api/players?teamId=${id}`),
+        ]);
 
-        const playersRes = await fetch(`${API_URL}/api/players?teamId=${id}`);
+        if (!teamRes.ok) throw new Error(`Failed to fetch team: ${teamRes.status}`);
         if (!playersRes.ok)
           throw new Error(`Failed to fetch players: ${playersRes.status}`);
-        console.log(players);
-        const teamPlayers = await playersRes.json();
-        const fetchedPlayers: Player[] = teamPlayers.map((p: any) => ({
-          ...p,
-          points: p.points ?? {},
+
+        const teamData: Team = await teamRes.json();
+        const playersRaw = await playersRes.json();
+        const roster: Player[] = (playersRaw as any[]).map((player) => ({
+          _id:
+            extractPlayerId(player?._id) ??
+            (typeof player?._id === "string" ? player._id : String(player?._id ?? "")),
+          name: player?.name ?? "Unknown Player",
+          teamId: player?.teamId
+            ? extractPlayerId(player.teamId) ?? String(player.teamId)
+            : undefined,
+          points: player?.points ?? {},
         }));
 
-        let savedLineup: Lineup = {};
-        let savedBench: Player[] = [];
+        if (!isMounted) return;
 
-        if (teamData.lineup) {
-          savedLineup = Object.fromEntries(
-            Object.entries(teamData.lineup).map(([slot, playerId]) => [
-              slot,
-              fetchedPlayers.find((p) => p._id === playerId),
-            ])
-          ) as Lineup;
+        setTeam(teamData);
+        setPlayers(roster);
 
-          savedBench = fetchedPlayers.filter(
-            (p) => !Object.values(savedLineup).some((pl) => pl?._id === p._id)
-          );
-        }
-
-        if (
-          !savedLineup.Passing &&
-          !savedLineup.Rushing &&
-          !savedLineup.Receiving &&
-          !savedLineup.Defense &&
-          !savedLineup.Kicking
-        ) {
-          const starters: Player[] = fetchedPlayers.slice(0, 5);
-          const benchPlayers: Player[] = fetchedPlayers.slice(5);
-          const newLineup: Lineup = {};
-          starters.forEach((p: Player) => {
-            if (p.name.includes("Passing") && !newLineup.Passing)
-              newLineup.Passing = p;
-            else if (p.name.includes("Rushing") && !newLineup.Rushing)
-              newLineup.Rushing = p;
-            else if (p.name.includes("Receiving") && !newLineup.Receiving)
-              newLineup.Receiving = p;
-            else if (p.name.includes("Defense") && !newLineup.Defense)
-              newLineup.Defense = p;
-            else if (p.name.includes("Kicking") && !newLineup.Kicking)
-              newLineup.Kicking = p;
-            else benchPlayers.push(p);
-          });
-          setLineup(newLineup);
-          setBench(benchPlayers);
+        const mappedLineup = mapServerLineup(teamData.lineup, roster);
+        if (Object.keys(mappedLineup).length) {
+          setLineup(mappedLineup);
         } else {
-          setLineup(savedLineup);
-          setBench(savedBench);
+          const defaultLineup = buildDefaultLineup(roster);
+          setLineup(defaultLineup);
+          if (roster.length) void saveLineup(defaultLineup, roster);
         }
-
-        setPlayers(fetchedPlayers);
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
+        if (!isMounted) return;
         setTeam(null);
         setPlayers([]);
+        setLineup({});
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
-    fetchData();
+    void fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id, API_URL]);
 
   if (loading) return null;
@@ -143,22 +209,21 @@ export default function TeamPage() {
       <div className="team-page">
         <h1>Team Not Found</h1>
         <Link className="btn-link" to="/fantasy">
-          ⬅ Back to Fantasy
+          ? Back to Fantasy
         </Link>
       </div>
     );
   }
 
-  // ✅ Calculate cumulative record
   const getCumulativeRecord = (team: Team, week: string) => {
     if (!team.record) return { wins: 0, losses: 0 };
     let wins = 0;
     let losses = 0;
     const weekNum = parseInt(week.replace("week", ""));
     for (let i = 1; i <= weekNum; i++) {
-      const w = `week${i}`;
-      if (team.record[w] === "W") wins++;
-      if (team.record[w] === "L") losses++;
+      const weekKey = `week${i}`;
+      if (team.record[weekKey] === "W") wins++;
+      if (team.record[weekKey] === "L") losses++;
     }
     return { wins, losses };
   };
@@ -166,45 +231,40 @@ export default function TeamPage() {
   const { wins, losses } = getCumulativeRecord(team, selectedWeek);
 
   const starterTotal = Object.values(lineup).reduce(
-    (sum: number, p?: Player) => sum + (p?.points[selectedWeek] || 0),
+    (sum, player) => sum + (player?.points[selectedWeek] || 0),
     0
   );
   const benchTotal = bench.reduce(
-    (sum: number, p: Player) => sum + (p.points[selectedWeek] || 0),
+    (sum, player) => sum + (player.points[selectedWeek] || 0),
     0
   );
 
-  const moveToBench = (slot: keyof Lineup) => {
-    if (!lineup[slot]) return;
-    const newBench = [...bench, lineup[slot]!];
-    const newLineup = { ...lineup, [slot]: undefined };
-    setBench(newBench);
-    setLineup(newLineup);
+  const moveToBench = (slot: LineupSlot) => {
+    setLineup((current) => {
+      if (!current[slot]) return current;
+      const next = { ...current };
+      delete next[slot];
+      if (editing) void saveLineup(next);
+      return next;
+    });
   };
 
   const moveToLineup = (player: Player) => {
-    let slot: keyof Lineup | null = null;
-    if (player.name.includes("Passing")) slot = "Passing";
-    else if (player.name.includes("Rushing")) slot = "Rushing";
-    else if (player.name.includes("Receiving")) slot = "Receiving";
-    else if (player.name.includes("Defense")) slot = "Defense";
-    else if (player.name.includes("Kicking")) slot = "Kicking";
+    const slot = inferSlotFromPlayer(player);
+    if (!slot) return;
 
-    if (slot) {
-      const replaced = lineup[slot];
-      const newBench = replaced
-        ? [...bench.filter((p) => p._id !== player._id), replaced]
-        : bench.filter((p) => p._id !== player._id);
-
-      const newLineup = { ...lineup, [slot]: player };
-      setLineup(newLineup);
-      setBench(newBench);
-    }
+    setLineup((current) => {
+      const next = { ...current, [slot]: player };
+      if (editing) void saveLineup(next);
+      return next;
+    });
   };
 
   const toggleEditing = () => {
-    if (editing) saveLineup(lineup);
-    setEditing(!editing);
+    if (editing) {
+      void saveLineup(lineup);
+    }
+    setEditing((prev) => !prev);
   };
 
   return (
@@ -222,14 +282,14 @@ export default function TeamPage() {
         </div>
 
         <div className="form-row">
-          <h2>Points: {starterTotal?.toFixed(2) ?? 0}</h2>
+          <h2>Points: {starterTotal.toFixed(2)}</h2>
           <select
             value={selectedWeek}
-            onChange={(e) => setSelectedWeek(e.target.value)}
+            onChange={(event) => setSelectedWeek(event.target.value)}
           >
-            {Array.from({ length: 17 }, (_, i) => (
-              <option key={`week${i + 1}`} value={`week${i + 1}`}>
-                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+            {Array.from({ length: 17 }, (_, index) => (
+              <option key={`week${index + 1}`} value={`week${index + 1}`}>
+                {index < 14 ? `Week ${index + 1}` : `Playoff/Champ ${index - 13}`}
               </option>
             ))}
           </select>
@@ -244,9 +304,7 @@ export default function TeamPage() {
           </button>
         </div>
         <ul className="player-list">
-          {(
-            ["Passing", "Rushing", "Receiving", "Defense", "Kicking"] as const
-          ).map(
+          {LINEUP_SLOTS.map(
             (slot) =>
               lineup[slot] && (
                 <li key={slot} className="player-card">
@@ -268,12 +326,12 @@ export default function TeamPage() {
         <h2 className="bench-h2">Bench</h2>
         {bench.length > 0 ? (
           <ul className="player-list">
-            {bench.map((p: Player) => (
-              <li key={p._id} className="player-card">
-                <strong>{p.name}</strong> Points:{" "}
-                {(p.points[selectedWeek] || 0).toFixed(2)}
+            {bench.map((player) => (
+              <li key={player._id} className="player-card">
+                <strong>{player.name}</strong> Points:{" "}
+                {(player.points[selectedWeek] || 0).toFixed(2)}
                 {editing && (
-                  <button onClick={() => moveToLineup(p)}>Start</button>
+                  <button onClick={() => moveToLineup(player)}>Start</button>
                 )}
               </li>
             ))}
@@ -287,7 +345,7 @@ export default function TeamPage() {
       </section>
 
       <Link className="btn-link" to="/scoreboard">
-        ⬅ Back to Scoreboard
+        ? Back to Scoreboard
       </Link>
     </div>
   );
