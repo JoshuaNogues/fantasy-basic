@@ -1,12 +1,17 @@
 // src/Pages/Scoreboard.tsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  LINEUP_SLOTS,
+  type LineupSlot,
+  normalizeLineupSlot,
+} from "../constants/lineup";
 import "../App.css";
 
 interface Team {
   _id: string;
   name: string;
-  lineup?: Record<string, string | null>; // Map of slot -> playerId
+  lineup?: Partial<Record<LineupSlot, string | null>>; // Map of slot -> playerId
 }
 
 interface Player {
@@ -14,6 +19,7 @@ interface Player {
   name: string;
   teamId?: string;
   points: Record<string, number>;
+  position?: LineupSlot;
 }
 
 // Explicit type for mapped team scores
@@ -45,7 +51,13 @@ export default function Scoreboard() {
         const playersData: Player[] = await playersRes.json();
 
         setTeams(teamsData);
-        setPlayers(playersData.map((p) => ({ ...p, points: p.points ?? {} })));
+        setPlayers(
+          playersData.map((p) => ({
+            ...p,
+            points: p.points ?? {},
+            position: normalizeLineupSlot(p.position),
+          }))
+        );
       } catch (err) {
         console.error("Error fetching data:", err);
       }
@@ -61,13 +73,7 @@ export default function Scoreboard() {
     // Grab starters from lineup
     const starters: Player[] = [];
     if (team.lineup) {
-      for (const slot of [
-        "Passing",
-        "Rushing",
-        "Receiving",
-        "Defense",
-        "Kicking",
-      ]) {
+      for (const slot of LINEUP_SLOTS) {
         const playerId = team.lineup[slot];
         if (playerId) {
           const player = teamPlayers.find((p) => p._id === playerId);

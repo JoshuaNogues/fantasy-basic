@@ -1,6 +1,11 @@
 // src/Pages/Fantasy.tsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import {
+  LINEUP_SLOTS,
+  type LineupSlot,
+  normalizeLineupSlot,
+} from "../constants/lineup";
 
 interface Team {
   _id: string;
@@ -13,6 +18,7 @@ interface Player {
   name: string;
   teamId?: string;
   points: Record<string, number>;
+  position?: LineupSlot;
 }
 
 export default function Fantasy() {
@@ -21,6 +27,7 @@ export default function Fantasy() {
   const [teamName, setTeamName] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [playerTeam, setPlayerTeam] = useState("");
+  const [playerPosition, setPlayerPosition] = useState<LineupSlot | "">("");
 
   const [pointsTeam, setPointsTeam] = useState("");
   const [pointsPlayer, setPointsPlayer] = useState("");
@@ -53,7 +60,13 @@ export default function Fantasy() {
 
         // Ensure Map fields are plain objects
         setTeams(teamsData.map((t) => ({ ...t, record: t.record ?? {} })));
-        setPlayers(playersData.map((p) => ({ ...p, points: p.points ?? {} })));
+        setPlayers(
+          playersData.map((p) => ({
+            ...p,
+            points: p.points ?? {},
+            position: normalizeLineupSlot(p.position),
+          }))
+        );
       } catch (err) {
         console.error(err);
       }
@@ -90,12 +103,21 @@ export default function Fantasy() {
           name: playerName,
           teamId: playerTeam || undefined,
           points: {},
+          position: playerPosition || undefined,
         }),
       });
       const newPlayer: Player = await res.json();
-      setPlayers([...players, { ...newPlayer, points: {} }]);
+      setPlayers([
+        ...players,
+        {
+          ...newPlayer,
+          points: newPlayer.points ?? {},
+          position: normalizeLineupSlot(newPlayer.position),
+        },
+      ]);
       setPlayerName("");
       setPlayerTeam("");
+      setPlayerPosition("");
     } catch (err) {
       console.error(err);
     }
@@ -112,7 +134,16 @@ export default function Fantasy() {
       });
       const updatedPlayer: Player = await res.json();
       setPlayers(
-        players.map((p) => (p._id === updatedPlayer._id ? updatedPlayer : p))
+        players.map((p) =>
+          p._id === updatedPlayer._id
+            ? {
+                ...p,
+                ...updatedPlayer,
+                points: updatedPlayer.points ?? {},
+                position: normalizeLineupSlot(updatedPlayer.position),
+              }
+            : p
+        )
       );
       setPointsPlayer("");
       setPointsTeam("");
@@ -218,6 +249,19 @@ export default function Fantasy() {
             {teams.map((t) => (
               <option key={t._id} value={t._id}>
                 {t.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={playerPosition}
+            onChange={(e) =>
+              setPlayerPosition(e.target.value as LineupSlot | "")
+            }
+          >
+            <option value="">Select position</option>
+            {LINEUP_SLOTS.map((slot) => (
+              <option key={slot} value={slot}>
+                {slot}
               </option>
             ))}
           </select>

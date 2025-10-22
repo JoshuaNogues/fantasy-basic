@@ -46,11 +46,13 @@ mongoose
 // ==========================
 // Mongoose Schemas
 // ==========================
+const LINEUP_SLOTS = ["Passing", "Rushing", "Receiving", "Defense", "Kicking"];
+
 const teamSchema = new mongoose.Schema({
   name: { type: String, required: true },
   lineup: {
     type: Map,
-    of: mongoose.Schema.Types.ObjectId,
+    of: String,
     default: {},
   },
   record: {
@@ -64,10 +66,25 @@ const playerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   teamId: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
   points: { type: Map, of: Number, default: {} },
+  position: { type: String, enum: LINEUP_SLOTS },
 });
 
 const Team = mongoose.model("Team", teamSchema);
 const Player = mongoose.model("Player", playerSchema);
+
+const serializeLineup = (lineup) => {
+  if (!lineup) return {};
+  const result = {};
+  LINEUP_SLOTS.forEach((slot) => {
+    const value =
+      typeof lineup.get === "function" ? lineup.get(slot) : lineup?.[slot];
+    if (value) result[slot] = value.toString();
+  });
+  return result;
+};
+
+const serializeRecord = (record) =>
+  record ? Object.fromEntries(record) : {};
 
 // ==========================
 // Routes
@@ -80,8 +97,8 @@ app.get("/api/teams", async (req, res) => {
     res.json(
       teams.map((t) => ({
         ...t.toObject(),
-        record: Object.fromEntries(t.record),
-        lineup: Object.fromEntries(t.lineup), // ✅ convert lineup
+        record: serializeRecord(t.record),
+        lineup: serializeLineup(t.lineup),
       }))
     );
   } catch (err) {
@@ -96,8 +113,8 @@ app.get("/api/teams/:id", async (req, res) => {
 
     res.json({
       ...team.toObject(),
-      record: Object.fromEntries(team.record),
-      lineup: Object.fromEntries(team.lineup), // ✅ convert lineup
+      record: serializeRecord(team.record),
+      lineup: serializeLineup(team.lineup),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -110,8 +127,8 @@ app.post("/api/teams", async (req, res) => {
     await team.save();
     res.json({
       ...team.toObject(),
-      record: Object.fromEntries(team.record),
-      lineup: Object.fromEntries(team.lineup),
+      record: serializeRecord(team.record),
+      lineup: serializeLineup(team.lineup),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -127,13 +144,27 @@ app.patch("/api/teams/:id/lineup", async (req, res) => {
     const team = await Team.findById(id);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    team.lineup = lineup;
+    if (lineup && typeof lineup === "object") {
+      const nextLineup = {};
+      LINEUP_SLOTS.forEach((slot) => {
+        const raw = lineup[slot];
+        if (typeof raw === "string" && raw.trim()) {
+          nextLineup[slot] = raw.trim();
+        }
+      });
+      team.lineup = nextLineup;
+      team.markModified("lineup");
+    } else {
+      team.lineup = {};
+      team.markModified("lineup");
+    }
+
     await team.save();
 
     res.json({
       ...team.toObject(),
-      record: Object.fromEntries(team.record),
-      lineup: Object.fromEntries(team.lineup),
+      record: serializeRecord(team.record),
+      lineup: serializeLineup(team.lineup),
     });
   } catch (err) {
     console.error("Error updating lineup:", err);
@@ -161,8 +192,8 @@ app.patch("/api/teams/:id/record", async (req, res) => {
 
     res.json({
       ...team.toObject(),
-      record: Object.fromEntries(team.record),
-      lineup: Object.fromEntries(team.lineup),
+      record: serializeRecord(team.record),
+      lineup: serializeLineup(team.lineup),
     });
   } catch (err) {
     console.error("Error updating record:", err);
@@ -189,7 +220,11 @@ app.get("/api/players", async (req, res) => {
 
 app.post("/api/players", async (req, res) => {
   try {
-    const player = new Player(req.body);
+    const payload = {
+      ...req.body,
+      position: req.body.position || undefined,
+    };
+    const player = new Player(payload);
     await player.save();
     res.json({
       ...player.toObject(),
@@ -233,3 +268,4 @@ app.patch("/api/players/:id/points", async (req, res) => {
 app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);
 });
+

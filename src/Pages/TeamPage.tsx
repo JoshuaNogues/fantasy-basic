@@ -1,12 +1,17 @@
 // src/Pages/TeamPage.tsx
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import {
+  LINEUP_SLOTS,
+  type LineupSlot,
+  normalizeLineupSlot,
+} from "../constants/lineup";
 import "../App.css";
 
 interface Team {
   _id: string;
   name: string;
-  lineup?: Record<string, string | null>;
+  lineup?: Partial<Record<LineupSlot, string | null>>;
   record?: Record<string, "W" | "L">;
 }
 
@@ -15,10 +20,9 @@ interface Player {
   name: string;
   teamId?: string;
   points: Record<string, number>;
+  position?: LineupSlot;
 }
 
-const LINEUP_SLOTS = ["Passing", "Rushing", "Receiving", "Defense", "Kicking"] as const;
-type LineupSlot = (typeof LINEUP_SLOTS)[number];
 type Lineup = Partial<Record<LineupSlot, Player>>;
 
 const extractPlayerId = (value: unknown): string | null => {
@@ -36,21 +40,12 @@ const extractPlayerId = (value: unknown): string | null => {
   return null;
 };
 
-const inferSlotFromPlayer = (player: Player): LineupSlot | null => {
-  if (player.name.includes("Passing")) return "Passing";
-  if (player.name.includes("Rushing")) return "Rushing";
-  if (player.name.includes("Receiving")) return "Receiving";
-  if (player.name.includes("Defense")) return "Defense";
-  if (player.name.includes("Kicking")) return "Kicking";
-  return null;
-};
-
 const mapServerLineup = (rawLineup: Team["lineup"], roster: Player[]): Lineup => {
   const starters: Lineup = {};
   if (!rawLineup) return starters;
 
   for (const slot of LINEUP_SLOTS) {
-    const playerId = extractPlayerId((rawLineup as Record<string, unknown>)[slot]);
+    const playerId = extractPlayerId(rawLineup?.[slot]);
     if (!playerId) continue;
     const player = roster.find((p) => p._id === playerId);
     if (player) starters[slot] = player;
@@ -63,13 +58,15 @@ const buildDefaultLineup = (roster: Player[]): Lineup => {
   const starters: Lineup = {};
   const taken = new Set<string>();
 
-  roster.forEach((player) => {
-    const slot = inferSlotFromPlayer(player);
-    if (slot && !starters[slot]) {
-      starters[slot] = player;
-      taken.add(player._id);
+  for (const slot of LINEUP_SLOTS) {
+    const candidate = roster.find(
+      (player) => player.position === slot && !taken.has(player._id)
+    );
+    if (candidate) {
+      starters[slot] = candidate;
+      taken.add(candidate._id);
     }
-  });
+  }
 
   for (const slot of LINEUP_SLOTS) {
     if (!starters[slot]) {
@@ -169,6 +166,7 @@ export default function TeamPage() {
             ? extractPlayerId(player.teamId) ?? String(player.teamId)
             : undefined,
           points: player?.points ?? {},
+          position: normalizeLineupSlot(player?.position),
         }));
 
         if (!isMounted) return;
@@ -250,10 +248,12 @@ export default function TeamPage() {
   };
 
   const moveToLineup = (player: Player) => {
-    const slot = inferSlotFromPlayer(player);
-    if (!slot) return;
-
     setLineup((current) => {
+      const slot = player.position;
+      if (!slot) {
+        console.warn(`Cannot move ${player.name} to lineup without a position`);
+        return current;
+      }
       const next = { ...current, [slot]: player };
       if (editing) void saveLineup(next);
       return next;
@@ -308,7 +308,10 @@ export default function TeamPage() {
             (slot) =>
               lineup[slot] && (
                 <li key={slot} className="player-card">
-                  <strong>{lineup[slot]!.name}</strong> Points:{" "}
+                  <strong>
+                    {lineup[slot]!.name}
+                  </strong>{" "}
+                  Points:{" "}
                   {(lineup[slot]!.points[selectedWeek] || 0).toFixed(2)}
                   {editing && (
                     <button onClick={() => moveToBench(slot)}>Bench</button>
@@ -328,10 +331,23 @@ export default function TeamPage() {
           <ul className="player-list">
             {bench.map((player) => (
               <li key={player._id} className="player-card">
-                <strong>{player.name}</strong> Points:{" "}
+                <strong>
+                  {player.name}
+                </strong>{" "}
+                Points:{" "}
                 {(player.points[selectedWeek] || 0).toFixed(2)}
                 {editing && (
-                  <button onClick={() => moveToLineup(player)}>Start</button>
+                  <button
+                    onClick={() => moveToLineup(player)}
+                    disabled={!player.position}
+                    title={
+                      player.position
+                        ? undefined
+                        : "Assign a position to this player before starting"
+                    }
+                  >
+                    Start
+                  </button>
                 )}
               </li>
             ))}
@@ -345,7 +361,8 @@ export default function TeamPage() {
       </section>
 
       <Link className="btn-link" to="/scoreboard">
-        ? Back to Scoreboard
+        
+        View League Scoreboard
       </Link>
     </div>
   );
