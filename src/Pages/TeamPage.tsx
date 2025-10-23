@@ -174,17 +174,26 @@ export default function TeamPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [teamRes, playersRes] = await Promise.all([
+        const [teamRes, playersRes, currentWeekRes] = await Promise.all([
           fetch(`${API_URL}/api/teams/${id}`),
           fetch(`${API_URL}/api/players?teamId=${id}`),
+          fetch(`${API_URL}/api/settings/current-week`),
         ]);
 
         if (!teamRes.ok) throw new Error(`Failed to fetch team: ${teamRes.status}`);
         if (!playersRes.ok)
           throw new Error(`Failed to fetch players: ${playersRes.status}`);
+        if (!currentWeekRes.ok)
+          throw new Error(`Failed to fetch current week: ${currentWeekRes.status}`);
 
         const teamData: Team = await teamRes.json();
         const playersRaw = await playersRes.json();
+        const currentWeekData = await currentWeekRes.json();
+        const resolvedWeek =
+          typeof currentWeekData?.currentWeek === "string"
+            ? currentWeekData.currentWeek
+            : "week1";
+
         const roster: Player[] = (playersRaw as any[]).map((player) => ({
           _id:
             extractPlayerId(player?._id) ??
@@ -199,6 +208,7 @@ export default function TeamPage() {
 
         if (!isMounted) return;
 
+        setSelectedWeek((prev) => (prev === resolvedWeek ? prev : resolvedWeek));
         setTeam(teamData);
         setPlayers(roster);
 
@@ -206,14 +216,14 @@ export default function TeamPage() {
         if (!Object.keys(mappedLineups).length) {
           const fallbackLineup = mapServerLineup(teamData.lineup, roster);
           if (Object.keys(fallbackLineup).length) {
-            mappedLineups = { [selectedWeek]: fallbackLineup };
+            mappedLineups = { [resolvedWeek]: fallbackLineup };
           }
         }
 
         if (!Object.keys(mappedLineups).length && roster.length) {
           const defaultLineup = buildDefaultLineup(roster);
-          mappedLineups = { [selectedWeek]: defaultLineup };
-          void saveLineup(selectedWeek, defaultLineup, roster);
+          mappedLineups = { [resolvedWeek]: defaultLineup };
+          void saveLineup(resolvedWeek, defaultLineup, roster);
         }
 
         setLineupsByWeek(mappedLineups);

@@ -37,26 +37,50 @@ export default function Fantasy() {
   const [recordValue, setRecordValue] = useState<"W" | "L" | "">("");
 
   const [selectedWeek, setSelectedWeek] = useState("week1");
+  const [currentWeek, setCurrentWeek] = useState("week1");
+  const [currentWeekDraft, setCurrentWeekDraft] = useState("week1");
+  const [updatingCurrentWeek, setUpdatingCurrentWeek] = useState(false);
+  const [currentWeekError, setCurrentWeekError] = useState<string | null>(null);
 
   const API_URL = import.meta.env.VITE_API_BASE;
   // const API_URL = "http://localhost:5000";
+
+  const formatWeekLabel = (week: string) => {
+    const match = week.match(/^week(\d+)$/i);
+    if (!match) return week;
+    const weekNumber = Number.parseInt(match[1], 10);
+    if (Number.isNaN(weekNumber)) return week;
+    return weekNumber <= 14
+      ? `Week ${weekNumber}`
+      : `Playoff/Champ ${weekNumber - 13}`;
+  };
 
   // Fetch teams and players
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [teamsRes, playersRes] = await Promise.all([
+        const [teamsRes, playersRes, currentWeekRes] = await Promise.all([
           fetch(`${API_URL}/api/teams`),
           fetch(`${API_URL}/api/players`),
+          fetch(`${API_URL}/api/settings/current-week`),
         ]);
 
         if (!teamsRes.ok)
           throw new Error(`Failed to fetch teams: ${teamsRes.status}`);
         if (!playersRes.ok)
           throw new Error(`Failed to fetch players: ${playersRes.status}`);
+        if (!currentWeekRes.ok)
+          throw new Error(
+            `Failed to fetch current week: ${currentWeekRes.status}`
+          );
 
         const teamsData: Team[] = await teamsRes.json();
         const playersData: Player[] = await playersRes.json();
+        const currentWeekData = await currentWeekRes.json();
+        const resolvedWeek =
+          typeof currentWeekData?.currentWeek === "string"
+            ? currentWeekData.currentWeek
+            : "week1";
 
         // Ensure Map fields are plain objects
         setTeams(teamsData.map((t) => ({ ...t, record: t.record ?? {} })));
@@ -67,6 +91,9 @@ export default function Fantasy() {
             position: normalizeLineupSlot(p.position),
           }))
         );
+        setCurrentWeek(resolvedWeek);
+        setCurrentWeekDraft(resolvedWeek);
+        setSelectedWeek(resolvedWeek);
       } catch (err) {
         console.error(err);
       }
@@ -74,6 +101,35 @@ export default function Fantasy() {
 
     fetchData();
   }, [API_URL]);
+
+  const handleUpdateCurrentWeek = async () => {
+    setCurrentWeekError(null);
+    setUpdatingCurrentWeek(true);
+    try {
+      const response = await fetch(`${API_URL}/api/settings/current-week`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ week: currentWeekDraft }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to update current week");
+      }
+
+      const data = await response.json();
+      const resolvedWeek =
+        typeof data?.currentWeek === "string" ? data.currentWeek : "week1";
+      setCurrentWeek(resolvedWeek);
+      setCurrentWeekDraft(resolvedWeek);
+      setSelectedWeek(resolvedWeek);
+    } catch (error) {
+      console.error("Failed to set current week:", error);
+      setCurrentWeekError("Unable to set current week. Please try again.");
+    } finally {
+      setUpdatingCurrentWeek(false);
+    }
+  };
 
   // Add a new team
   const addTeam = async () => {
@@ -203,6 +259,35 @@ export default function Fantasy() {
   return (
     <div className="fantasy-page">
       <h1 className="page-title">LM Tools Dashboard</h1>
+
+      <section className="card-section">
+        <h2>Current Week</h2>
+        <div className="form-row">
+          <select
+            value={currentWeekDraft}
+            onChange={(e) => setCurrentWeekDraft(e.target.value)}
+          >
+            {Array.from({ length: 17 }, (_, i) => (
+              <option key={`current-week-${i + 1}`} value={`week${i + 1}`}>
+                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn"
+            onClick={handleUpdateCurrentWeek}
+            disabled={updatingCurrentWeek || currentWeekDraft === currentWeek}
+          >
+            {updatingCurrentWeek ? "Saving..." : "Set Current Week"}
+          </button>
+          <span>
+            Active Week: <strong>{formatWeekLabel(currentWeek)}</strong>
+          </span>
+        </div>
+        {currentWeekError && (
+          <p style={{ color: "#c0392b" }}>{currentWeekError}</p>
+        )}
+      </section>
 
       {/* Teams Section */}
       <section className="card-section">

@@ -77,6 +77,17 @@ const playerSchema = new mongoose.Schema({
 const Team = mongoose.model("Team", teamSchema);
 const Player = mongoose.model("Player", playerSchema);
 
+const settingsSchema = new mongoose.Schema({
+  key: { type: String, required: true, unique: true },
+  value: { type: mongoose.Schema.Types.Mixed, default: null },
+});
+
+settingsSchema.index({ key: 1 }, { unique: true });
+
+const Setting = mongoose.model("Setting", settingsSchema);
+const CURRENT_WEEK_KEY = "currentWeek";
+const DEFAULT_WEEK = "week1";
+
 const serializeLineup = (lineup) => {
   if (!lineup) return {};
   const result = {};
@@ -122,6 +133,32 @@ const sanitizeLineup = (lineup) => {
   return nextLineup;
 };
 
+const normalizeWeekKey = (week) => {
+  if (typeof week !== "string") return null;
+  const trimmed = week.trim().toLowerCase();
+  if (!/^week\d+$/.test(trimmed)) return null;
+  return trimmed;
+};
+
+const getCurrentWeek = async () => {
+  const setting = await Setting.findOne({ key: CURRENT_WEEK_KEY });
+  const storedWeek = normalizeWeekKey(setting?.value);
+  return storedWeek ?? DEFAULT_WEEK;
+};
+
+const setCurrentWeek = async (week) => {
+  const normalized = normalizeWeekKey(week);
+  if (!normalized) throw new Error("Invalid week value");
+
+  const updated = await Setting.findOneAndUpdate(
+    { key: CURRENT_WEEK_KEY },
+    { value: normalized },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  return normalizeWeekKey(updated.value) ?? DEFAULT_WEEK;
+};
+
 const formatTeam = (team) => {
   const plain = team.toObject();
   const serializedLineups = serializeLineups(team.lineups ?? plain.lineups);
@@ -148,6 +185,38 @@ const formatTeam = (team) => {
 // ==========================
 // Routes
 // ==========================
+
+// SETTINGS
+app.get("/api/settings/current-week", async (req, res) => {
+  try {
+    const currentWeek = await getCurrentWeek();
+    res.json({ currentWeek });
+  } catch (err) {
+    console.error("Error fetching current week:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.patch("/api/settings/current-week", async (req, res) => {
+  try {
+    const { week } = req.body;
+    if (!week) {
+      return res.status(400).json({ message: "Week value is required" });
+    }
+
+    let normalizedWeek;
+    try {
+      normalizedWeek = await setCurrentWeek(week);
+    } catch (error) {
+      return res.status(400).json({ message: "Invalid week format" });
+    }
+
+    res.json({ currentWeek: normalizedWeek });
+  } catch (err) {
+    console.error("Error updating current week:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 // TEAMS
 app.get("/api/teams", async (req, res) => {

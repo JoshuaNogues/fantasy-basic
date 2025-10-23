@@ -92,16 +92,22 @@ export default function Scoreboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [teamsRes, playersRes] = await Promise.all([
+        const [teamsRes, playersRes, currentWeekRes] = await Promise.all([
           fetch(`${API_URL}/api/teams`),
           fetch(`${API_URL}/api/players`),
+          fetch(`${API_URL}/api/settings/current-week`),
         ]);
 
-        if (!teamsRes.ok || !playersRes.ok)
+        if (!teamsRes.ok || !playersRes.ok || !currentWeekRes.ok)
           throw new Error("Failed to fetch data");
 
         const teamsData: Team[] = await teamsRes.json();
         const playersData: Player[] = await playersRes.json();
+        const currentWeekData = await currentWeekRes.json();
+        const resolvedWeek =
+          typeof currentWeekData?.currentWeek === "string"
+            ? currentWeekData.currentWeek
+            : "week1";
 
         setTeams(teamsData);
         setPlayers(
@@ -111,6 +117,7 @@ export default function Scoreboard() {
             position: normalizeLineupSlot(p.position),
           }))
         );
+        setSelectedWeek(resolvedWeek);
       } catch (err) {
         console.error("Error fetching data:", err);
       }
