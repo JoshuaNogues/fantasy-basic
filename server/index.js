@@ -55,6 +55,11 @@ const teamSchema = new mongoose.Schema({
     of: String,
     default: {},
   },
+  lineups: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    default: {},
+  },
   record: {
     type: Map,
     of: String,
@@ -86,6 +91,60 @@ const serializeLineup = (lineup) => {
 const serializeRecord = (record) =>
   record ? Object.fromEntries(record) : {};
 
+const serializeLineups = (lineups) => {
+  if (!lineups) return {};
+  const result = {};
+  const entries =
+    typeof lineups.entries === "function"
+      ? Array.from(lineups.entries())
+      : Object.entries(lineups);
+
+  entries.forEach(([week, lineup]) => {
+    const serialized = serializeLineup(lineup);
+    if (Object.keys(serialized).length) {
+      result[week] = serialized;
+    }
+  });
+
+  return result;
+};
+
+const sanitizeLineup = (lineup) => {
+  if (!lineup || typeof lineup !== "object") return {};
+  const nextLineup = {};
+  LINEUP_SLOTS.forEach((slot) => {
+    const raw =
+      typeof lineup.get === "function" ? lineup.get(slot) : lineup?.[slot];
+    if (typeof raw === "string" && raw.trim()) {
+      nextLineup[slot] = raw.trim();
+    }
+  });
+  return nextLineup;
+};
+
+const formatTeam = (team) => {
+  const plain = team.toObject();
+  const serializedLineups = serializeLineups(team.lineups ?? plain.lineups);
+
+  let serializedLineup = serializeLineup(team.lineup ?? plain.lineup);
+  if (!Object.keys(serializedLineup).length) {
+    const firstEntry = Object.entries(serializedLineups)[0];
+    if (firstEntry) {
+      serializedLineup = firstEntry[1];
+    }
+  }
+  if (!Object.keys(serializedLineups).length && Object.keys(serializedLineup).length) {
+    serializedLineups["week1"] = serializedLineup;
+  }
+
+  return {
+    ...plain,
+    record: serializeRecord(team.record ?? plain.record),
+    lineup: serializedLineup,
+    lineups: serializedLineups,
+  };
+};
+
 // ==========================
 // Routes
 // ==========================
@@ -94,13 +153,7 @@ const serializeRecord = (record) =>
 app.get("/api/teams", async (req, res) => {
   try {
     const teams = await Team.find();
-    res.json(
-      teams.map((t) => ({
-        ...t.toObject(),
-        record: serializeRecord(t.record),
-        lineup: serializeLineup(t.lineup),
-      }))
-    );
+    res.json(teams.map((team) => formatTeam(team)));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -111,11 +164,7 @@ app.get("/api/teams/:id", async (req, res) => {
     const team = await Team.findById(req.params.id);
     if (!team) return res.status(404).json({ error: "Team not found" });
 
-    res.json({
-      ...team.toObject(),
-      record: serializeRecord(team.record),
-      lineup: serializeLineup(team.lineup),
-    });
+    res.json(formatTeam(team));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -125,11 +174,7 @@ app.post("/api/teams", async (req, res) => {
   try {
     const team = new Team(req.body);
     await team.save();
-    res.json({
-      ...team.toObject(),
-      record: serializeRecord(team.record),
-      lineup: serializeLineup(team.lineup),
-    });
+    res.json(formatTeam(team));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -139,33 +184,40 @@ app.post("/api/teams", async (req, res) => {
 app.patch("/api/teams/:id/lineup", async (req, res) => {
   try {
     const { id } = req.params;
-    const { lineup } = req.body;
+    const { lineup, week } = req.body;
 
     const team = await Team.findById(id);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    if (lineup && typeof lineup === "object") {
-      const nextLineup = {};
-      LINEUP_SLOTS.forEach((slot) => {
-        const raw = lineup[slot];
-        if (typeof raw === "string" && raw.trim()) {
-          nextLineup[slot] = raw.trim();
-        }
-      });
-      team.lineup = nextLineup;
-      team.markModified("lineup");
+    const weekKey =
+      typeof week === "string" && week.trim() ? week.trim() : "week1";
+
+    const nextLineup = sanitizeLineup(lineup);
+    const hasLineupEntries = Object.keys(nextLineup).length > 0;
+
+    let lineupsMap;
+    if (team.lineups instanceof Map) {
+      lineupsMap = team.lineups;
     } else {
-      team.lineup = {};
-      team.markModified("lineup");
+      lineupsMap = new Map(
+        team.lineups ? Object.entries(team.lineups) : []
+      );
+      team.lineups = lineupsMap;
     }
+
+    if (hasLineupEntries) {
+      lineupsMap.set(weekKey, nextLineup);
+    } else {
+      lineupsMap.delete(weekKey);
+    }
+    team.markModified("lineups");
+
+    team.lineup = nextLineup;
+    team.markModified("lineup");
 
     await team.save();
 
-    res.json({
-      ...team.toObject(),
-      record: serializeRecord(team.record),
-      lineup: serializeLineup(team.lineup),
-    });
+    res.json(formatTeam(team));
   } catch (err) {
     console.error("Error updating lineup:", err);
     res.status(500).json({ message: "Server error" });
@@ -190,11 +242,7 @@ app.patch("/api/teams/:id/record", async (req, res) => {
     team.record.set(week, result);
     await team.save();
 
-    res.json({
-      ...team.toObject(),
-      record: serializeRecord(team.record),
-      lineup: serializeLineup(team.lineup),
-    });
+    res.json(formatTeam(team));
   } catch (err) {
     console.error("Error updating record:", err);
     res.status(500).json({ message: "Server error" });

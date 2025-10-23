@@ -12,6 +12,7 @@ interface Team {
   _id: string;
   name: string;
   lineup?: Partial<Record<LineupSlot, string | null>>;
+  lineups?: Record<string, Partial<Record<LineupSlot, string | null>>>;
   record?: Record<string, "W" | "L">;
 }
 
@@ -54,6 +55,17 @@ const mapServerLineup = (rawLineup: Team["lineup"], roster: Player[]): Lineup =>
   return starters;
 };
 
+const mapServerLineups = (
+  rawLineups: Team["lineups"],
+  roster: Player[]
+): Record<string, Lineup> => {
+  if (!rawLineups) return {};
+  return Object.entries(rawLineups).reduce((acc, [weekKey, lineup]) => {
+    acc[weekKey] = mapServerLineup(lineup, roster);
+    return acc;
+  }, {} as Record<string, Lineup>);
+};
+
 const buildDefaultLineup = (roster: Player[]): Lineup => {
   const starters: Lineup = {};
   const taken = new Set<string>();
@@ -90,22 +102,31 @@ export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
   const [team, setTeam] = useState<Team | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [lineup, setLineup] = useState<Lineup>({});
+  const [lineupsByWeek, setLineupsByWeek] = useState<Record<string, Lineup>>({});
   const [selectedWeek, setSelectedWeek] = useState("week1");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_BASE;
 
+  const currentLineup = useMemo(
+    () => lineupsByWeek[selectedWeek] ?? {},
+    [lineupsByWeek, selectedWeek]
+  );
+
   const bench = useMemo(() => {
     if (!players.length) return [] as Player[];
     const starterIds = new Set(
-      LINEUP_SLOTS.map((slot) => lineup[slot]?._id).filter(Boolean) as string[]
+      LINEUP_SLOTS.map((slot) => currentLineup[slot]?._id).filter(Boolean) as string[]
     );
     return players.filter((player) => !starterIds.has(player._id));
-  }, [players, lineup]);
+  }, [players, currentLineup]);
 
-  const saveLineup = async (lineupToSave: Lineup, rosterOverride?: Player[]) => {
+  const saveLineup = async (
+    weekKey: string,
+    lineupToSave: Lineup,
+    rosterOverride?: Player[]
+  ) => {
     if (!id) return;
     const roster = rosterOverride ?? players;
 
@@ -113,7 +134,10 @@ export default function TeamPage() {
       const response = await fetch(`${API_URL}/api/teams/${id}/lineup`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lineup: lineupToPayload(lineupToSave) }),
+        body: JSON.stringify({
+          week: weekKey,
+          lineup: lineupToPayload(lineupToSave),
+        }),
       });
 
       if (!response.ok) {
@@ -123,10 +147,14 @@ export default function TeamPage() {
       const updatedTeam: Team = await response.json();
       setTeam(updatedTeam);
 
-      const synced = mapServerLineup(updatedTeam.lineup, roster);
-      if (Object.keys(synced).length) {
-        setLineup(synced);
+      const syncedLineups = mapServerLineups(updatedTeam.lineups, roster);
+      if (!Object.keys(syncedLineups).length) {
+        const fallback = mapServerLineup(updatedTeam.lineup, roster);
+        if (Object.keys(fallback).length) {
+          syncedLineups[weekKey] = fallback;
+        }
       }
+      setLineupsByWeek(syncedLineups);
     } catch (error) {
       console.error("Failed to save lineup", error);
     }
@@ -136,7 +164,7 @@ export default function TeamPage() {
     if (!id) {
       setTeam(null);
       setPlayers([]);
-      setLineup({});
+      setLineupsByWeek({});
       setLoading(false);
       return;
     }
@@ -174,20 +202,27 @@ export default function TeamPage() {
         setTeam(teamData);
         setPlayers(roster);
 
-        const mappedLineup = mapServerLineup(teamData.lineup, roster);
-        if (Object.keys(mappedLineup).length) {
-          setLineup(mappedLineup);
-        } else {
-          const defaultLineup = buildDefaultLineup(roster);
-          setLineup(defaultLineup);
-          if (roster.length) void saveLineup(defaultLineup, roster);
+        let mappedLineups = mapServerLineups(teamData.lineups, roster);
+        if (!Object.keys(mappedLineups).length) {
+          const fallbackLineup = mapServerLineup(teamData.lineup, roster);
+          if (Object.keys(fallbackLineup).length) {
+            mappedLineups = { [selectedWeek]: fallbackLineup };
+          }
         }
+
+        if (!Object.keys(mappedLineups).length && roster.length) {
+          const defaultLineup = buildDefaultLineup(roster);
+          mappedLineups = { [selectedWeek]: defaultLineup };
+          void saveLineup(selectedWeek, defaultLineup, roster);
+        }
+
+        setLineupsByWeek(mappedLineups);
       } catch (error) {
         console.error(error);
         if (!isMounted) return;
         setTeam(null);
         setPlayers([]);
-        setLineup({});
+        setLineupsByWeek({});
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -199,6 +234,50 @@ export default function TeamPage() {
       isMounted = false;
     };
   }, [id, API_URL]);
+
+  useEffect(() => {
+    setLineupsByWeek((current) => {
+      if (current[selectedWeek]) return current;
+
+      const entries = Object.keys(current);
+      if (!entries.length) {
+        if (!players.length) return current;
+        const defaultLineup = buildDefaultLineup(players);
+        if (!Object.keys(defaultLineup).length) return current;
+        return { ...current, [selectedWeek]: defaultLineup };
+      }
+
+      const parseWeekNumber = (value: string): number | null => {
+        const parsed = Number.parseInt(value.replace("week", ""), 10);
+        return Number.isNaN(parsed) ? null : parsed;
+      };
+
+      const targetWeek = parseWeekNumber(selectedWeek);
+
+      const weekEntries = entries
+        .map((weekKey) => ({ weekKey, num: parseWeekNumber(weekKey) }))
+        .filter(
+          (entry): entry is { weekKey: string; num: number } =>
+            entry.num !== null
+        )
+        .sort((a, b) => b.num - a.num);
+
+      const fallbackWeek =
+        weekEntries.find((entry) =>
+          targetWeek === null ? true : entry.num <= targetWeek
+        )?.weekKey ?? weekEntries[0]?.weekKey;
+
+      if (!fallbackWeek) return current;
+
+      const fallbackLineup = current[fallbackWeek];
+      if (!fallbackLineup) return current;
+
+      return {
+        ...current,
+        [selectedWeek]: { ...fallbackLineup },
+      };
+    });
+  }, [selectedWeek, players]);
 
   if (loading) return null;
 
@@ -228,7 +307,7 @@ export default function TeamPage() {
 
   const { wins, losses } = getCumulativeRecord(team, selectedWeek);
 
-  const starterTotal = Object.values(lineup).reduce(
+  const starterTotal = Object.values(currentLineup).reduce(
     (sum, player) => sum + (player?.points[selectedWeek] || 0),
     0
   );
@@ -238,31 +317,35 @@ export default function TeamPage() {
   );
 
   const moveToBench = (slot: LineupSlot) => {
-    setLineup((current) => {
-      if (!current[slot]) return current;
-      const next = { ...current };
+    setLineupsByWeek((current) => {
+      const existing = current[selectedWeek] ?? {};
+      if (!existing[slot]) return current;
+      const next = { ...existing };
       delete next[slot];
-      if (editing) void saveLineup(next);
-      return next;
+      const updated = { ...current, [selectedWeek]: next };
+      if (editing) void saveLineup(selectedWeek, next);
+      return updated;
     });
   };
 
   const moveToLineup = (player: Player) => {
-    setLineup((current) => {
+    setLineupsByWeek((current) => {
       const slot = player.position;
       if (!slot) {
         console.warn(`Cannot move ${player.name} to lineup without a position`);
         return current;
       }
-      const next = { ...current, [slot]: player };
-      if (editing) void saveLineup(next);
-      return next;
+      const existing = current[selectedWeek] ?? {};
+      const next = { ...existing, [slot]: player };
+      const updated = { ...current, [selectedWeek]: next };
+      if (editing) void saveLineup(selectedWeek, next);
+      return updated;
     });
   };
 
   const toggleEditing = () => {
     if (editing) {
-      void saveLineup(lineup);
+      void saveLineup(selectedWeek, currentLineup);
     }
     setEditing((prev) => !prev);
   };
@@ -306,13 +389,13 @@ export default function TeamPage() {
         <ul className="player-list">
           {LINEUP_SLOTS.map(
             (slot) =>
-              lineup[slot] && (
+              currentLineup[slot] && (
                 <li key={slot} className="player-card">
                   <strong>
-                    {lineup[slot]!.name}
+                    {currentLineup[slot]!.name}
                   </strong>{" "}
                   Points:{" "}
-                  {(lineup[slot]!.points[selectedWeek] || 0).toFixed(2)}
+                  {(currentLineup[slot]!.points[selectedWeek] || 0).toFixed(2)}
                   {editing && (
                     <button onClick={() => moveToBench(slot)}>Bench</button>
                   )}

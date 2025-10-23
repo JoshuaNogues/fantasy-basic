@@ -12,6 +12,7 @@ interface Team {
   _id: string;
   name: string;
   lineup?: Partial<Record<LineupSlot, string | null>>; // Map of slot -> playerId
+  lineups?: Record<string, Partial<Record<LineupSlot, string | null>>>;
 }
 
 interface Player {
@@ -28,6 +29,58 @@ interface TeamScore extends Team {
   leadingScorer: Player | null;
   leadingPoints: number;
 }
+
+const parseWeekNumber = (week: string): number | null => {
+  const parsed = Number.parseInt(week.replace("week", ""), 10);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const extractPlayerId = (value: unknown): string | null => {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    if (value && typeof (value as { $oid?: unknown }).$oid === "string") {
+      return (value as { $oid: string }).$oid;
+    }
+    if (value && "toString" in value) {
+      const stringified = (value as { toString: () => string }).toString();
+      if (stringified && stringified !== "[object Object]") return stringified;
+    }
+  }
+  return null;
+};
+
+const pickLineupForWeek = (
+  team: Team,
+  week: string
+): Partial<Record<LineupSlot, string | null>> | undefined => {
+  if (team.lineups?.[week]) return team.lineups[week];
+
+  if (team.lineups) {
+    const targetWeek = parseWeekNumber(week);
+    const entries = Object.keys(team.lineups)
+      .map((weekKey) => ({
+        weekKey,
+        num: parseWeekNumber(weekKey),
+      }))
+      .filter(
+        (entry): entry is { weekKey: string; num: number } =>
+          entry.num !== null
+      )
+      .sort((a, b) => b.num - a.num);
+
+    const fallbackWeek =
+      entries.find((entry) =>
+        targetWeek === null ? true : entry.num <= targetWeek
+      )?.weekKey ?? entries[0]?.weekKey;
+
+    if (fallbackWeek) {
+      return team.lineups[fallbackWeek];
+    }
+  }
+
+  return team.lineup;
+};
 
 export default function Scoreboard() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -72,13 +125,13 @@ export default function Scoreboard() {
 
     // Grab starters from lineup
     const starters: Player[] = [];
-    if (team.lineup) {
+    const lineupForWeek = pickLineupForWeek(team, selectedWeek);
+    if (lineupForWeek) {
       for (const slot of LINEUP_SLOTS) {
-        const playerId = team.lineup[slot];
-        if (playerId) {
-          const player = teamPlayers.find((p) => p._id === playerId);
-          if (player) starters.push(player);
-        }
+        const playerId = extractPlayerId(lineupForWeek[slot]);
+        if (!playerId) continue;
+        const player = teamPlayers.find((p) => p._id === playerId);
+        if (player) starters.push(player);
       }
     }
 
