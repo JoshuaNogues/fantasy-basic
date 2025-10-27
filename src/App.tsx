@@ -1,13 +1,13 @@
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
 import Fantasy from "./Pages/Fantasy";
 import TeamPage from "./Pages/TeamPage";
 import Scoreboard from "./Pages/Scoreboard";
 import Home from "./Pages/Home";
-import { useEffect, useState, useRef } from "react";
 import "./App.css";
 
 interface Team {
-  _id: string; // MongoDB uses _id
+  _id: string;
   name: string;
 }
 
@@ -17,41 +17,44 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLLIElement>(null);
 
-  // Use environment variable for backend URL
-const API_URL = import.meta.env.VITE_API_BASE; // ✅ corrected
+  const API_URL = import.meta.env.VITE_API_BASE;
 
-// Fetch teams from backend
-useEffect(() => {
-  const fetchTeams = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/teams`);
-      if (!res.ok) throw new Error(`Failed to fetch teams: ${res.status}`);
-      const data = await res.json();
-      setTeams(data);
-    } catch (err) {
-      console.error("Error fetching teams:", err);
-    }
-  };
-  fetchTeams();
-}, [API_URL]);
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/teams`);
+        if (!res.ok) throw new Error(`Failed to fetch teams: ${res.status}`);
+        const data = await res.json();
+        setTeams(data);
+      } catch (error) {
+        console.error("Error fetching teams:", error);
+      }
+    };
 
+    fetchTeams();
+  }, [API_URL]);
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close mobile menu when resizing to desktop
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 768 && mobileMenuOpen) setMobileMenuOpen(false);
+      if (window.innerWidth > 768 && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
     };
+
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [mobileMenuOpen]);
@@ -59,83 +62,113 @@ useEffect(() => {
   return (
     <BrowserRouter>
       <nav className="navbar">
-        {/* Hamburger button for mobile */}
-        <button
-          className="hamburger"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          ☰
-        </button>
+        <div className="navbar-inner">
+          <Link
+            to="/"
+            className="navbar-brand"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setDropdownOpen(false);
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="Funtasy 5 logo"
+              className="brand-logo"
+            />
+            <span className="brand-name">Funtasy 5</span>
+          </Link>
 
-        <ul className={`navlist ${mobileMenuOpen ? "open" : ""}`}>
-          <li className="navitem">
-            <Link
-              to="/"
-              className="nav-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              League Home
-            </Link>
-          </li>
+          <button
+            className={`hamburger ${mobileMenuOpen ? "active" : ""}`}
+            onClick={() => {
+              setMobileMenuOpen((prev) => !prev);
+              setDropdownOpen(false);
+            }}
+            aria-label="Toggle navigation"
+            aria-expanded={mobileMenuOpen}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
 
-          <li className="navitem">
-            <Link
-              to="/fantasy"
-              className="nav-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              LM Tools
-            </Link>
-          </li>
+          <ul className={`navlist ${mobileMenuOpen ? "open" : ""}`}>
+            <li className="navitem">
+              <Link
+                to="/"
+                className="nav-link"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setDropdownOpen(false);
+                }}
+              >
+                League Home
+              </Link>
+            </li>
+            <li className="navitem">
+              <Link
+                to="/fantasy"
+                className="nav-link"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setDropdownOpen(false);
+                }}
+              >
+                LM Tools
+              </Link>
+            </li>
+            <li className="navitem dropdown" ref={dropdownRef}>
+              <span
+                className="nav-link nav-trigger"
+                onClick={() => setDropdownOpen((prev) => !prev)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    setDropdownOpen((prev) => !prev);
+                  }
+                }}
+              >
+                Teams ▾
+              </span>
 
-          {/* Teams dropdown */}
-          <li className="navitem dropdown" ref={dropdownRef}>
-            <span
-              className="nav-link nav-trigger"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) =>
-                (e.key === "Enter" || e.key === " ") && setDropdownOpen(!dropdownOpen)
-              }
-            >
-              Teams ▾
-            </span>
-
-            {dropdownOpen && (
-              <div className="dropdown-content">
-                {teams.length > 0 ? (
-                  teams.map((t) => (
-                    <Link
-                      key={t._id}
-                      to={`/team/${t._id}`}
-                      className="dropdown-item"
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        setMobileMenuOpen(false); // close mobile menu too
-                      }}
-                    >
-                      {t.name}
-                    </Link>
-                  ))
-                ) : (
-                  <span className="dropdown-item">No teams yet</span>
-                )}
-              </div>
-            )}
-          </li>
-
-          <li className="navitem">
-            <Link
-              to="/scoreboard"
-              className="nav-link"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Scoreboard
-            </Link>
-          </li>
-        </ul>
+              {dropdownOpen && (
+                <div className="dropdown-content">
+                  {teams.length > 0 ? (
+                    teams.map((team) => (
+                      <Link
+                        key={team._id}
+                        to={`/team/${team._id}`}
+                        className="dropdown-item"
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        {team.name}
+                      </Link>
+                    ))
+                  ) : (
+                    <span className="dropdown-item">No teams yet</span>
+                  )}
+                </div>
+              )}
+            </li>
+            <li className="navitem">
+              <Link
+                to="/scoreboard"
+                className="nav-link"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setDropdownOpen(false);
+                }}
+              >
+                Scoreboard
+              </Link>
+            </li>
+          </ul>
+        </div>
       </nav>
 
       <div className="content">
