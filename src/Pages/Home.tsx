@@ -109,7 +109,7 @@ export default function Home() {
             <div>
               <span className="highlight-value">92%</span>
               <span className="highlight-label">
-                Managers set lineups in under 2 minutes
+                Find Funtasy 5 easy to use!
               </span>
             </div>
             <div>
