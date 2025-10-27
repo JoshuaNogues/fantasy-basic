@@ -98,6 +98,18 @@ const lineupToPayload = (lineup: Lineup) =>
     LINEUP_SLOTS.map((slot) => [slot, lineup[slot]?._id ?? null])
   );
 
+const parseWeekNumber = (week: string): number | null => {
+  const parsed = Number.parseInt(week.replace("week", ""), 10);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const formatWeekLabel = (weekKey: string) => {
+  const weekNum = parseWeekNumber(weekKey);
+  if (weekNum === null) return weekKey;
+  if (weekNum <= 14) return `Week ${weekNum}`;
+  return `Playoff/Champ ${weekNum - 14}`;
+};
+
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
   const [team, setTeam] = useState<Team | null>(null);
@@ -294,10 +306,15 @@ export default function TeamPage() {
   if (!team) {
     return (
       <div className="team-page">
-        <h1>Team Not Found</h1>
-        <Link className="btn-link" to="/fantasy">
-          ? Back to Fantasy
-        </Link>
+        <div className="team-panel team-panel--empty">
+          <h1>Team Not Found</h1>
+          <p className="team-empty-copy">
+            We couldn&apos;t locate that roster. Head back to fantasy to pick a different squad.
+          </p>
+          <Link className="scoreboard-back" to="/fantasy">
+            Back to Fantasy
+          </Link>
+        </div>
       </div>
     );
   }
@@ -360,103 +377,159 @@ export default function TeamPage() {
     setEditing((prev) => !prev);
   };
 
+  const weekLabel = formatWeekLabel(selectedWeek);
+  const weekResult = team?.record?.[selectedWeek] ?? "-";
+
   return (
     <div className="team-page">
-      <div className="team-header">
-        <div className="team-name-total">
+      <div className="team-panel">
+        <header className="team-hero">
+          <div className="team-hero__row">
+            <span className="team-tag">Team Spotlight</span>
+            <span className="team-record-pill">
+              {wins}-{losses} overall
+            </span>
+          </div>
           <h1>{team?.name ?? "Unknown Team"}</h1>
-          <h2>
-            Record: {wins}-{losses}
-          </h2>
-          <p>
-            Week {selectedWeek.replace("week", "")}:{" "}
-            {team.record?.[selectedWeek] || "-"}
-          </p>
+          <div className="team-hero__metrics">
+            <div className="metric metric--starter">
+              <span className="metric-label">Starter Points</span>
+              <span className="metric-value">{starterTotal.toFixed(2)}</span>
+            </div>
+            <div className="metric metric--result">
+              <span className="metric-label">{weekLabel} Result</span>
+              <span className="metric-value">{weekResult}</span>
+            </div>
+          </div>
+          <div className="team-hero__controls">
+            <div className="week-summary">
+              <span className="week-label">{weekLabel}</span>
+              <span className="week-result-note">
+                Showing lineup performance and record for this week.
+              </span>
+            </div>
+            <div className="week-selector">
+              <label htmlFor="team-week-select">Select week</label>
+              <select
+                id="team-week-select"
+                value={selectedWeek}
+                onChange={(event) => setSelectedWeek(event.target.value)}
+              >
+                {Array.from({ length: 17 }, (_, index) => (
+                  <option key={`week${index + 1}`} value={`week${index + 1}`}>
+                    {index < 14 ? `Week ${index + 1}` : `Playoff/Champ ${index - 13}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <div className="lineup-grid">
+          <section className="lineup-card">
+            <header className="lineup-card__header">
+              <div>
+                <h2>Starters</h2>
+                <p>Locked-in starters delivering points for {weekLabel}.</p>
+              </div>
+              <button
+                type="button"
+                className="lineup-toggle"
+                onClick={toggleEditing}
+              >
+                {editing ? "Done Editing" : "Edit Lineup"}
+              </button>
+            </header>
+            <ul className="lineup-list">
+              {LINEUP_SLOTS.map((slot) => {
+                const starter = currentLineup[slot];
+                if (!starter) return null;
+                return (
+                  <li key={slot} className="lineup-item">
+                    <div className="lineup-item__info">
+                      <span className="lineup-slot">{slot}</span>
+                      <div className="lineup-player">
+                        <strong>{starter.name}</strong>
+                        <span className="lineup-points">
+                          {(starter.points[selectedWeek] || 0).toFixed(2)} pts
+                        </span>
+                      </div>
+                    </div>
+                    {editing && (
+                      <button
+                        type="button"
+                        className="lineup-action"
+                        onClick={() => moveToBench(slot)}
+                      >
+                        Bench
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="lineup-card__footer">
+              <span>Total Starter Points</span>
+              <strong>{starterTotal.toFixed(2)}</strong>
+            </div>
+          </section>
+
+          <section className="lineup-card lineup-card--bench">
+            <header className="lineup-card__header">
+              <div>
+                <h2>Bench</h2>
+                <p>Ready to step in when you swap the lineup.</p>
+              </div>
+            </header>
+            {bench.length > 0 ? (
+              <ul className="lineup-list">
+                {bench.map((player) => (
+                  <li key={player._id} className="lineup-item lineup-item--bench">
+                    <div className="lineup-item__info">
+                      <span className="lineup-slot">
+                        {player.position ?? "Bench"}
+                      </span>
+                      <div className="lineup-player">
+                        <strong>{player.name}</strong>
+                        <span className="lineup-points">
+                          {(player.points[selectedWeek] || 0).toFixed(2)} pts
+                        </span>
+                      </div>
+                    </div>
+                    {editing && (
+                      <button
+                        type="button"
+                        className="lineup-action"
+                        onClick={() => moveToLineup(player)}
+                        disabled={!player.position}
+                        title={
+                          player.position
+                            ? undefined
+                            : "Assign a position to this player before starting"
+                        }
+                      >
+                        Start
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="lineup-empty">No bench players assigned yet.</p>
+            )}
+            <div className="lineup-card__footer">
+              <span>Total Bench Points</span>
+              <strong>{benchTotal.toFixed(2)}</strong>
+            </div>
+          </section>
         </div>
 
-        <div className="form-row">
-          <h2>Points: {starterTotal.toFixed(2)}</h2>
-          <select
-            value={selectedWeek}
-            onChange={(event) => setSelectedWeek(event.target.value)}
-          >
-            {Array.from({ length: 17 }, (_, index) => (
-              <option key={`week${index + 1}`} value={`week${index + 1}`}>
-                {index < 14 ? `Week ${index + 1}` : `Playoff/Champ ${index - 13}`}
-              </option>
-            ))}
-          </select>
-        </div>
+        <footer className="team-footer">
+          <Link className="scoreboard-back" to="/scoreboard">
+            View League Scoreboard
+          </Link>
+        </footer>
       </div>
-
-      <section className="card-section">
-        <div className="team-name-total">
-          <h2>Starters</h2>
-          <button className="btn-link" onClick={toggleEditing}>
-            {editing ? "Done" : "Edit Lineup"}
-          </button>
-        </div>
-        <ul className="player-list">
-          {LINEUP_SLOTS.map(
-            (slot) =>
-              currentLineup[slot] && (
-                <li key={slot} className="player-card">
-                  <strong>
-                    {currentLineup[slot]!.name}
-                  </strong>{" "}
-                  Points:{" "}
-                  {(currentLineup[slot]!.points[selectedWeek] || 0).toFixed(2)}
-                  {editing && (
-                    <button onClick={() => moveToBench(slot)}>Bench</button>
-                  )}
-                </li>
-              )
-          )}
-        </ul>
-        <p>
-          <strong>Starter Total: {starterTotal.toFixed(2)}</strong>
-        </p>
-      </section>
-
-      <section className="card-section">
-        <h2 className="bench-h2">Bench</h2>
-        {bench.length > 0 ? (
-          <ul className="player-list">
-            {bench.map((player) => (
-              <li key={player._id} className="player-card">
-                <strong>
-                  {player.name}
-                </strong>{" "}
-                Points:{" "}
-                {(player.points[selectedWeek] || 0).toFixed(2)}
-                {editing && (
-                  <button
-                    onClick={() => moveToLineup(player)}
-                    disabled={!player.position}
-                    title={
-                      player.position
-                        ? undefined
-                        : "Assign a position to this player before starting"
-                    }
-                  >
-                    Start
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No bench players assigned yet.</p>
-        )}
-        <p>
-          <strong>Bench Total: {benchTotal.toFixed(2)}</strong>
-        </p>
-      </section>
-
-      <Link className="btn-link" to="/scoreboard">
-        
-        View League Scoreboard
-      </Link>
     </div>
   );
 }

@@ -1,5 +1,4 @@
-// src/Pages/Scoreboard.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   LINEUP_SLOTS,
@@ -13,6 +12,7 @@ interface Team {
   name: string;
   lineup?: Partial<Record<LineupSlot, string | null>>; // Map of slot -> playerId
   lineups?: Record<string, Partial<Record<LineupSlot, string | null>>>;
+  record?: Record<string, "W" | "L">;
 }
 
 interface Player {
@@ -29,6 +29,33 @@ interface TeamScore extends Team {
   leadingScorer: Player | null;
   leadingPoints: number;
 }
+
+const ACCENT_THEMES = [
+  {
+    accentColor: "#5bdbe6",
+    glow: "rgba(28, 163, 180, 0.38)",
+    badgeGradient: "linear-gradient(135deg, #0e7481, #1ca3b4)",
+    badgeTextColor: "#062126",
+  },
+  {
+    accentColor: "#FA4616",
+    glow: "rgba(250, 70, 22, 0.35)",
+    badgeGradient: "linear-gradient(135deg, #c33210, #FA4616)",
+    badgeTextColor: "#120b08",
+  },
+  {
+    accentColor: "#8A8D8F",
+    glow: "rgba(138, 141, 143, 0.32)",
+    badgeGradient: "linear-gradient(135deg, #4a4d4f, #8A8D8F)",
+    badgeTextColor: "#f3f4f6",
+  },
+  {
+    accentColor: "#29b9cc",
+    glow: "rgba(41, 185, 204, 0.32)",
+    badgeGradient: "linear-gradient(135deg, #165d66, #29b9cc)",
+    badgeTextColor: "#062126",
+  },
+] as const;
 
 const parseWeekNumber = (week: string): number | null => {
   const parsed = Number.parseInt(week.replace("week", ""), 10);
@@ -80,6 +107,41 @@ const pickLineupForWeek = (
   }
 
   return team.lineup;
+};
+
+const getCumulativeRecord = (team: Team, upToWeek: string) => {
+  if (!team.record) return { wins: 0, losses: 0 };
+  const targetWeek = parseWeekNumber(upToWeek);
+  if (targetWeek === null) return { wins: 0, losses: 0 };
+
+  let wins = 0;
+  let losses = 0;
+
+  Object.entries(team.record).forEach(([weekKey, result]) => {
+    const weekNum = parseWeekNumber(weekKey);
+    if (weekNum === null || weekNum > targetWeek) return;
+    if (result === "W") wins += 1;
+    if (result === "L") losses += 1;
+  });
+
+  return { wins, losses };
+};
+
+const getTeamInitials = (name: string) => {
+  const trimmed = name.trim();
+  if (!trimmed) return "??";
+  const words = trimmed.split(/\s+/);
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+  return (words[0][0] + words[1][0]).toUpperCase();
+};
+
+const formatWeekLabel = (weekKey: string) => {
+  const weekNum = parseWeekNumber(weekKey);
+  if (weekNum === null) return weekKey;
+  if (weekNum <= 14) return `Week ${weekNum}`;
+  return `Playoff/Champ ${weekNum - 14}`;
 };
 
 export default function Scoreboard() {
@@ -168,57 +230,101 @@ export default function Scoreboard() {
   const sortedTeams = [...teamScores].sort(
     (a, b) => b.starterTotal - a.starterTotal
   );
+  const weekLabel = formatWeekLabel(selectedWeek);
 
   return (
     <div className="scoreboard-page">
-      <div className="scoreboard-header card-section">
-        <h1>🏆 Scoreboard</h1>
-        <div className="form-row">
-          <label>Select Week: </label>
-          <select
-            value={selectedWeek}
-            onChange={(e) => setSelectedWeek(e.target.value)}
-          >
-            {Array.from({ length: 17 }, (_, i) => (
-              <option key={`week${i + 1}`} value={`week${i + 1}`}>
-                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <section className="card-section">
-        {sortedTeams.length > 0 ? (
-          <div className="team-grid">
-            {sortedTeams.map((t) => (
-              <div key={t._id} className="team-card">
-                <div className="teamname-points">
-                  <h2>
-                    <Link to={`/team/${t._id}`}>{t.name}</Link>
-                  </h2>
-                  <p>
-                    Points: <strong>{t.starterTotal.toFixed(2)}</strong>
-                  </p>
-                </div>
-                {t.leadingScorer ? (
-                  <p>
-                    ⭐ {t.leadingScorer!.name} ({t.leadingPoints.toFixed(2)}{" "}
-                    pts)
-                  </p>
-                ) : (
-                  <p>No starters yet</p>
-                )}
-              </div>
-            ))}
+      <div className="scoreboard-panel">
+        <header className="scoreboard-hero">
+          <div className="hero-top-row">
+            <span className="spotlight-tag">Week Spotlight</span>
+            <span className="hero-meta">Starter totals for {weekLabel}</span>
           </div>
-        ) : (
-          <p>No teams yet.</p>
-        )}
-      </section>
-      <Link className="btn-link" to="/fantasy">
-        {" "}
-        ⬅ Back to Fantasy{" "}
-      </Link>{" "}
+          <h1>Scoreboard</h1>
+          <p className="hero-copy">
+            Track each squad&apos;s starter output and see who delivered the
+            biggest performance of the week.
+          </p>
+          <div className="week-selector">
+            <label htmlFor="week-select">Select week</label>
+            <select
+              id="week-select"
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(e.target.value)}
+            >
+              {Array.from({ length: 17 }, (_, i) => (
+                <option key={`week${i + 1}`} value={`week${i + 1}`}>
+                  {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </header>
+
+        <section className="scoreboard-list">
+          {sortedTeams.length > 0 ? (
+            sortedTeams.map((team, index) => {
+              const { wins, losses } = getCumulativeRecord(team, selectedWeek);
+              const theme = ACCENT_THEMES[index % ACCENT_THEMES.length];
+              const recordHasData =
+                typeof team.record === "object" &&
+                Object.keys(team.record).length > 0;
+
+              const style = {
+                "--accent-color": theme.accentColor,
+                "--accent-glow": theme.glow,
+                "--badge-gradient": theme.badgeGradient,
+                "--badge-text-color": theme.badgeTextColor,
+              } as CSSProperties;
+
+              return (
+                <article key={team._id} className="scoreboard-row" style={style}>
+                  <div className="row-main">
+                    <div className="row-left">
+                      <span className="team-badge">
+                        {getTeamInitials(team.name)}
+                      </span>
+                      <div className="team-meta">
+                        <Link to={`/team/${team._id}`} className="team-name">
+                          {team.name}
+                        </Link>
+                        <span className="team-record">
+                          {recordHasData ? `${wins}-${losses}` : "Record pending"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="row-right">
+                      <span className="score-value">
+                        {team.starterTotal.toFixed(1)}
+                      </span>
+                      <span className="score-label">pts</span>
+                    </div>
+                  </div>
+                  <footer className="leading-scorer">
+                    {team.leadingScorer ? (
+                      <>
+                        Top starter:{" "}
+                        <span className="leading-name">
+                          {team.leadingScorer.name}
+                        </span>{" "}
+                        ({team.leadingPoints.toFixed(1)} pts)
+                      </>
+                    ) : (
+                      <>No starters recorded</>
+                    )}
+                  </footer>
+                </article>
+              );
+            })
+          ) : (
+            <p className="empty-state">No teams yet.</p>
+          )}
+        </section>
+
+        <Link className="scoreboard-back" to="/fantasy">
+          Back to Fantasy
+        </Link>
+      </div>
     </div>
   );
 }

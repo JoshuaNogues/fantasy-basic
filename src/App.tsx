@@ -118,7 +118,10 @@ export default function App() {
                 LM Tools
               </Link>
             </li>
-            <li className="navitem dropdown" ref={dropdownRef}>
+            <li
+              className={`navitem dropdown ${dropdownOpen ? "open" : ""}`}
+              ref={dropdownRef}
+            >
               <span
                 className="nav-link nav-trigger"
                 onClick={() => setDropdownOpen((prev) => !prev)}

@@ -18,9 +18,6 @@ export default function Home() {
             <Link to="/scoreboard" className="btn-solid">
               View Live Scoreboard
             </Link>
-            <Link to="/fantasy" className="btn-outline-alt">
-              Manage Your League
-            </Link>
           </div>
         </div>
 
@@ -124,41 +121,36 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="preview-card">
-          <header>
-            <p>Week 7 Starters</p>
-            <span className="pill">Locked</span>
+        <div className="lineup-card lineup-preview-card">
+          <header className="lineup-card__header">
+            <div>
+              <h2 className="week-preview">Week 7 Starters</h2>
+              <p>Locked-in preview of a Funtasy starting lineup.</p>
+            </div>
+            <span className="lineup-status">Locked</span>
           </header>
-          <ul>
-            <li>
-              <span className="slot">Passing</span>
-              <span className="player">Detroit Lions</span>
-              <span className="points">24.1</span>
-            </li>
-            <li>
-              <span className="slot">Rushing</span>
-              <span className="player">Baltimore Ravens</span>
-              <span className="points">19.6</span>
-            </li>
-            <li>
-              <span className="slot">Receiving</span>
-              <span className="player">Dallas Cowboys</span>
-              <span className="points">16.8</span>
-            </li>
-            <li>
-              <span className="slot">Defense</span>
-              <span className="player">San Francisco 49ers</span>
-              <span className="points">11.2</span>
-            </li>
-            <li>
-              <span className="slot">Kicking</span>
-              <span className="player">Kansas City Chiefs</span>
-              <span className="points">7.4</span>
-            </li>
+          <ul className="lineup-list lineup-preview-list">
+            {[
+              { slot: "Passing", team: "Detroit Lions", points: "24.1" },
+              { slot: "Rushing", team: "Baltimore Ravens", points: "19.6" },
+              { slot: "Receiving", team: "Dallas Cowboys", points: "16.8" },
+              { slot: "Defense", team: "San Francisco 49ers", points: "11.2" },
+              { slot: "Kicking", team: "Kansas City Chiefs", points: "7.4" },
+            ].map(({ slot, team, points }) => (
+              <li key={slot} className="lineup-item lineup-item--preview">
+                <div className="lineup-item__info">
+                  <span className="lineup-slot">{slot}</span>
+                  <div className="lineup-player">
+                    <strong>{team}</strong>
+                    <span className="lineup-points">{points} pts</span>
+                  </div>
+                </div>
+              </li>
+            ))}
           </ul>
-          <footer>
-            <span>Total</span>
-            <span className="points total">79.1</span>
+          <footer className="lineup-card__footer lineup-preview-footer">
+            <span>Total Starter Points</span>
+            <strong>79.1</strong>
           </footer>
         </div>
       </section>
