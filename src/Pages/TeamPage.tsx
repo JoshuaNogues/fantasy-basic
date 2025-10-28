@@ -106,8 +106,7 @@ const parseWeekNumber = (week: string): number | null => {
 const formatWeekLabel = (weekKey: string) => {
   const weekNum = parseWeekNumber(weekKey);
   if (weekNum === null) return weekKey;
-  if (weekNum <= 14) return `Week ${weekNum}`;
-  return `Playoff/Champ ${weekNum - 14}`;
+  return `Week ${weekNum}`;
 };
 
 export default function TeamPage() {
@@ -417,7 +416,7 @@ export default function TeamPage() {
               >
                 {Array.from({ length: 17 }, (_, index) => (
                   <option key={`week${index + 1}`} value={`week${index + 1}`}>
-                    {index < 14 ? `Week ${index + 1}` : `Playoff/Champ ${index - 13}`}
+                    {`Week ${index + 1}`}
                   </option>
                 ))}
               </select>

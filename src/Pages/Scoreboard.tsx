@@ -140,8 +140,7 @@ const getTeamInitials = (name: string) => {
 const formatWeekLabel = (weekKey: string) => {
   const weekNum = parseWeekNumber(weekKey);
   if (weekNum === null) return weekKey;
-  if (weekNum <= 14) return `Week ${weekNum}`;
-  return `Playoff/Champ ${weekNum - 14}`;
+  return `Week ${weekNum}`;
 };
 
 export default function Scoreboard() {
@@ -254,7 +253,7 @@ export default function Scoreboard() {
             >
               {Array.from({ length: 17 }, (_, i) => (
                 <option key={`week${i + 1}`} value={`week${i + 1}`}>
-                  {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+                  {`Week ${i + 1}`}
                 </option>
               ))}
             </select>

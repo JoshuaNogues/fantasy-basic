@@ -50,9 +50,7 @@ export default function Fantasy() {
     if (!match) return week;
     const weekNumber = Number.parseInt(match[1], 10);
     if (Number.isNaN(weekNumber)) return week;
-    return weekNumber <= 14
-      ? `Week ${weekNumber}`
-      : `Playoff/Champ ${weekNumber - 13}`;
+    return `Week ${weekNumber}`;
   };
 
   // Fetch teams and players
@@ -269,7 +267,7 @@ export default function Fantasy() {
           >
             {Array.from({ length: 17 }, (_, i) => (
               <option key={`current-week-${i + 1}`} value={`week${i + 1}`}>
-                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+                {`Week ${i + 1}`}
               </option>
             ))}
           </select>
@@ -394,7 +392,7 @@ export default function Fantasy() {
           >
             {Array.from({ length: 17 }, (_, i) => (
               <option key={`week${i + 1}`} value={`week${i + 1}`}>
-                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+                {`Week ${i + 1}`}
               </option>
             ))}
           </select>
@@ -442,7 +440,7 @@ export default function Fantasy() {
           >
             {Array.from({ length: 17 }, (_, i) => (
               <option key={`week${i + 1}-record`} value={`week${i + 1}`}>
-                {i < 14 ? `Week ${i + 1}` : `Playoff/Champ ${i - 13}`}
+                {`Week ${i + 1}`}
               </option>
             ))}
           </select>
