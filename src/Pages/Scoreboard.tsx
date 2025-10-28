@@ -321,8 +321,8 @@ export default function Scoreboard() {
           )}
         </section>
 
-        <Link className="scoreboard-back" to="/fantasy">
-          Back to Fantasy
+        <Link className="scoreboard-back" to="/">
+          Back to Home
         </Link>
       </div>
     </div>

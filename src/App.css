@@ -389,7 +389,7 @@ input, select {
 .team-page {
   display: flex;
   justify-content: center;
-  padding: 25px 0 64px;
+  padding: 10px 0 64px;
 }
 
 .team-page h2 {
@@ -776,7 +776,7 @@ input, select {
 .scoreboard-page {
   display: flex;
   justify-content: center;
-  padding: 24px 0 64px;
+  padding: 10px 0 64px;
 }
 
 .scoreboard-panel {
@@ -1184,12 +1184,6 @@ input, select {
 
 /* Fantasy, Team, Scoreboard pages padding */
 @media (max-width: 768px) {
-  .fantasy-page,
-  .team-page,
-  .scoreboard-page {
-    padding: 12px;
-  }
-
   .page-title,
   .team-header {
     font-size: 1.8rem;
