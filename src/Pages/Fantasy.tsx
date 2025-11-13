@@ -21,6 +21,13 @@ interface Player {
   position?: LineupSlot;
 }
 
+type MatchupMap = Record<string, Record<string, string>>;
+
+interface MatchupPair {
+  teamA: string;
+  teamB: string;
+}
+
 export default function Fantasy() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -41,6 +48,12 @@ export default function Fantasy() {
   const [currentWeekDraft, setCurrentWeekDraft] = useState("week1");
   const [updatingCurrentWeek, setUpdatingCurrentWeek] = useState(false);
   const [currentWeekError, setCurrentWeekError] = useState<string | null>(null);
+  const [matchupsByWeek, setMatchupsByWeek] = useState<MatchupMap>({});
+  const [matchupWeek, setMatchupWeek] = useState("week1");
+  const [matchupPairs, setMatchupPairs] = useState<MatchupPair[]>([]);
+  const [savingMatchups, setSavingMatchups] = useState(false);
+  const [matchupError, setMatchupError] = useState<string | null>(null);
+  const [matchupSuccess, setMatchupSuccess] = useState<string | null>(null);
 
   const API_URL = import.meta.env.VITE_API_BASE;
   // const API_URL = "http://localhost:5000";
@@ -92,6 +105,7 @@ export default function Fantasy() {
         setCurrentWeek(resolvedWeek);
         setCurrentWeekDraft(resolvedWeek);
         setSelectedWeek(resolvedWeek);
+        setMatchupWeek(resolvedWeek);
       } catch (err) {
         console.error(err);
       }
@@ -99,6 +113,57 @@ export default function Fantasy() {
 
     fetchData();
   }, [API_URL]);
+
+  useEffect(() => {
+    const fetchMatchups = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/matchups`);
+        if (!response.ok) throw new Error("Failed to fetch matchups");
+        const data = await response.json();
+        setMatchupsByWeek(data);
+      } catch (error) {
+        console.error("Error loading matchups:", error);
+      }
+    };
+
+    fetchMatchups();
+  }, [API_URL]);
+
+  useEffect(() => {
+    if (!teams.length) {
+      setMatchupPairs([]);
+      return;
+    }
+
+    const weekMap = matchupsByWeek[matchupWeek] ?? {};
+    const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
+    const used = new Set<string>();
+    const nextPairs: MatchupPair[] = [];
+
+    sortedTeams.forEach((team) => {
+      if (used.has(team._id)) return;
+      const opponentId = weekMap[team._id];
+      if (opponentId && !used.has(opponentId)) {
+        nextPairs.push({ teamA: team._id, teamB: opponentId });
+        used.add(team._id);
+        used.add(opponentId);
+      }
+    });
+
+    const remaining = sortedTeams.filter((team) => !used.has(team._id));
+    for (let i = 0; i < remaining.length; i += 2) {
+      const primary = remaining[i]?._id ?? "";
+      const secondary = remaining[i + 1]?._id ?? "";
+      nextPairs.push({ teamA: primary, teamB: secondary });
+    }
+
+    const requiredPairs = Math.max(1, Math.ceil(sortedTeams.length / 2));
+    while (nextPairs.length < requiredPairs) {
+      nextPairs.push({ teamA: "", teamB: "" });
+    }
+
+    setMatchupPairs(nextPairs);
+  }, [teams, matchupWeek, matchupsByWeek]);
 
   const handleUpdateCurrentWeek = async () => {
     setCurrentWeekError(null);
@@ -235,6 +300,92 @@ export default function Fantasy() {
       console.error(err);
     }
   };
+
+  const updatePairSelection = (
+    index: number,
+    side: "teamA" | "teamB",
+    value: string
+  ) => {
+    setMatchupPairs((prev) => {
+      const nextPairs = prev.map((pair, idx) => {
+        if (idx === index) return { ...pair };
+        if (!value) return { ...pair };
+        const updated = { ...pair };
+        if (updated.teamA === value) updated.teamA = "";
+        if (updated.teamB === value) updated.teamB = "";
+        return updated;
+      });
+
+      const target = { ...nextPairs[index], [side]: value };
+      if (value && side === "teamA" && target.teamB === value) {
+        target.teamB = "";
+      }
+      if (value && side === "teamB" && target.teamA === value) {
+        target.teamA = "";
+      }
+      nextPairs[index] = target;
+      return nextPairs;
+    });
+  };
+
+  const handleSaveMatchups = async () => {
+    if (!teams.length) return;
+    setMatchupError(null);
+    setMatchupSuccess(null);
+
+    const filledPairs = matchupPairs.filter(
+      (pair) => pair.teamA && pair.teamB
+    );
+    const assigned = new Set<string>();
+    for (const pair of filledPairs) {
+      if (pair.teamA === pair.teamB) {
+        setMatchupError("A team cannot face itself.");
+        return;
+      }
+      if (assigned.has(pair.teamA) || assigned.has(pair.teamB)) {
+        setMatchupError("Each team can only appear once per week.");
+        return;
+      }
+      assigned.add(pair.teamA);
+      assigned.add(pair.teamB);
+    }
+
+    if (assigned.size !== teams.length) {
+      setMatchupError("Please pair every team before saving.");
+      return;
+    }
+
+    setSavingMatchups(true);
+    try {
+      const response = await fetch(`${API_URL}/api/matchups/${matchupWeek}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pairings: filledPairs }),
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to save matchups");
+      }
+
+      const data = await response.json();
+      setMatchupsByWeek((prev) => ({ ...prev, [matchupWeek]: data }));
+      setMatchupSuccess("Matchups saved");
+    } catch (error) {
+      console.error("Failed to save matchups:", error);
+      setMatchupError(
+        error instanceof Error ? error.message : "Failed to save matchups"
+      );
+    } finally {
+      setSavingMatchups(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!matchupSuccess) return;
+    const timeout = setTimeout(() => setMatchupSuccess(null), 2500);
+    return () => clearTimeout(timeout);
+  }, [matchupSuccess]);
 
   // Helper: cumulative wins/losses up to selectedWeek
   const getCumulativeRecord = (team: Team, week: string) => {
@@ -447,6 +598,93 @@ export default function Fantasy() {
 
           <button className="btn" onClick={setRecord}>
             Set Record
+          </button>
+        </div>
+      </section>
+
+      <section className="card-section">
+        <div className="matchup-header">
+          <h2>Set Matchups</h2>
+          <div className="matchup-week-selector">
+            <label htmlFor="matchup-week">Week</label>
+            <select
+              id="matchup-week"
+              value={matchupWeek}
+              onChange={(e) => setMatchupWeek(e.target.value)}
+            >
+              {Array.from({ length: 17 }, (_, i) => (
+                <option key={`matchup-week-${i + 1}`} value={`week${i + 1}`}>
+                  {`Week ${i + 1}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {teams.length === 0 ? (
+          <p className="empty-state">Add teams to configure matchups.</p>
+        ) : (
+          <div className="matchup-grid">
+            {matchupPairs.map((pair, index) => (
+              <div className="matchup-row" key={`matchup-${index}`}>
+                <span className="matchup-seed">{index + 1}</span>
+                <select
+                  value={pair.teamA}
+                  onChange={(e) =>
+                    updatePairSelection(index, "teamA", e.target.value)
+                  }
+                >
+                  <option value="">Select team</option>
+                  {teams
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((teamOption) => (
+                      <option key={`pair-${index}-${teamOption._id}-a`} value={teamOption._id}>
+                        {teamOption.name}
+                      </option>
+                    ))}
+                </select>
+                <span className="matchup-vs">vs</span>
+                <select
+                  value={pair.teamB}
+                  onChange={(e) =>
+                    updatePairSelection(index, "teamB", e.target.value)
+                  }
+                >
+                  <option value="">Select team</option>
+                  {teams
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((teamOption) => (
+                      <option key={`pair-${index}-${teamOption._id}-b`} value={teamOption._id}>
+                        {teamOption.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="matchup-actions">
+          <div className="matchup-status">
+            {matchupError && (
+              <span className="status-text status-text--error">
+                {matchupError}
+              </span>
+            )}
+            {matchupSuccess && (
+              <span className="status-text status-text--success">
+                {matchupSuccess}
+              </span>
+            )}
+          </div>
+          <button
+            className="btn"
+            onClick={handleSaveMatchups}
+            disabled={savingMatchups || !teams.length}
+          >
+            {savingMatchups ? "Saving..." : "Save Matchups"}
           </button>
         </div>
       </section>

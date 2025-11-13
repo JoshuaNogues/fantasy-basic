@@ -366,6 +366,90 @@ input, select {
 
 .btn:hover { background: #007f88; }
 
+.matchup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.matchup-week-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+
+.matchup-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.matchup-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px dashed #cbd5f5;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.matchup-row select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.matchup-seed {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.matchup-vs {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #475569;
+}
+
+.matchup-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.matchup-status {
+  min-height: 20px;
+}
+
+.status-text {
+  font-size: 0.9rem;
+}
+
+.status-text--error {
+  color: #dc2626;
+}
+
+.status-text--success {
+  color: #16a34a;
+}
+
 .team-list, .player-list {
   list-style: none;
   padding: 0;
@@ -493,6 +577,10 @@ input, select {
 }
 
 .metric--bench .metric-value {
+  color: #FA4616;
+}
+
+.metric--opponent .metric-value {
   color: #FA4616;
 }
 

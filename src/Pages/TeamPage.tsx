@@ -1,6 +1,6 @@
 // src/Pages/TeamPage.tsx
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LINEUP_SLOTS,
   type LineupSlot,
@@ -25,6 +25,13 @@ interface Player {
 }
 
 type Lineup = Partial<Record<LineupSlot, Player>>;
+type MatchupMap = Record<string, Record<string, string>>;
+
+interface OpponentInfo {
+  teamId: string;
+  name: string;
+  starterTotal: number;
+}
 
 const extractPlayerId = (value: unknown): string | null => {
   if (!value) return null;
@@ -54,6 +61,20 @@ const mapServerLineup = (rawLineup: Team["lineup"], roster: Player[]): Lineup =>
 
   return starters;
 };
+
+const mapServerPlayer = (player: any): Player => ({
+  _id:
+    extractPlayerId(player?._id) ??
+    (typeof player?._id === "string"
+      ? player._id
+      : String(player?._id ?? "")),
+  name: player?.name ?? "Unknown Player",
+  teamId: player?.teamId
+    ? extractPlayerId(player.teamId) ?? String(player.teamId)
+    : undefined,
+  points: player?.points ?? {},
+  position: normalizeLineupSlot(player?.position),
+});
 
 const mapServerLineups = (
   rawLineups: Team["lineups"],
@@ -93,6 +114,33 @@ const buildDefaultLineup = (roster: Player[]): Lineup => {
   return starters;
 };
 
+const pickLineupForWeek = (
+  lineups: Record<string, Lineup>,
+  fallback: Lineup | undefined,
+  week: string
+): Lineup | undefined => {
+  if (lineups[week]) return lineups[week];
+  const weekNum = parseWeekNumber(week);
+  if (weekNum === null) return fallback;
+
+  const entries = Object.entries(lineups)
+    .map(([weekKey, lineup]) => ({
+      weekKey,
+      num: parseWeekNumber(weekKey),
+      lineup,
+    }))
+    .filter(
+      (entry): entry is { weekKey: string; num: number; lineup: Lineup } =>
+        entry.num !== null
+    )
+    .sort((a, b) => b.num - a.num);
+
+  const fallbackEntry =
+    entries.find((entry) => entry.num <= weekNum) ?? entries[0];
+
+  return fallbackEntry?.lineup ?? fallback;
+};
+
 const lineupToPayload = (lineup: Lineup) =>
   Object.fromEntries(
     LINEUP_SLOTS.map((slot) => [slot, lineup[slot]?._id ?? null])
@@ -109,6 +157,14 @@ const formatWeekLabel = (weekKey: string) => {
   return `Week ${weekNum}`;
 };
 
+const sumStarterPoints = (lineup: Lineup | undefined, week: string) => {
+  if (!lineup) return 0;
+  return LINEUP_SLOTS.reduce(
+    (sum, slot) => sum + (lineup[slot]?.points?.[week] ?? 0),
+    0
+  );
+};
+
 export default function TeamPage() {
   const { id } = useParams<{ id: string }>();
   const [team, setTeam] = useState<Team | null>(null);
@@ -117,6 +173,10 @@ export default function TeamPage() {
   const [selectedWeek, setSelectedWeek] = useState("week1");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [matchupsByWeek, setMatchupsByWeek] = useState<MatchupMap>({});
+  const [opponentInfo, setOpponentInfo] = useState<OpponentInfo | null>(null);
+  const [opponentLoading, setOpponentLoading] = useState(false);
+  const opponentCacheRef = useRef<Record<string, { team: Team; players: Player[] }>>({});
 
   const API_URL = import.meta.env.VITE_API_BASE;
 
@@ -205,17 +265,9 @@ export default function TeamPage() {
             ? currentWeekData.currentWeek
             : "week1";
 
-        const roster: Player[] = (playersRaw as any[]).map((player) => ({
-          _id:
-            extractPlayerId(player?._id) ??
-            (typeof player?._id === "string" ? player._id : String(player?._id ?? "")),
-          name: player?.name ?? "Unknown Player",
-          teamId: player?.teamId
-            ? extractPlayerId(player.teamId) ?? String(player.teamId)
-            : undefined,
-          points: player?.points ?? {},
-          position: normalizeLineupSlot(player?.position),
-        }));
+        const roster: Player[] = Array.isArray(playersRaw)
+          ? (playersRaw as any[]).map((player) => mapServerPlayer(player))
+          : [];
 
         if (!isMounted) return;
 
@@ -255,6 +307,110 @@ export default function TeamPage() {
       isMounted = false;
     };
   }, [id, API_URL]);
+
+  useEffect(() => {
+    const fetchMatchups = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/matchups`);
+        if (!response.ok) throw new Error("Failed to fetch matchups");
+        const data = await response.json();
+        setMatchupsByWeek(data);
+      } catch (error) {
+        console.error("Error fetching matchups:", error);
+      }
+    };
+
+    fetchMatchups();
+  }, [API_URL]);
+
+  useEffect(() => {
+    if (!team?._id) {
+      setOpponentInfo(null);
+      return;
+    }
+
+    const weekMap = matchupsByWeek[selectedWeek];
+    const opponentId = weekMap?.[team._id];
+
+    if (!opponentId) {
+      setOpponentInfo(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOpponent = async () => {
+      setOpponentLoading(true);
+      try {
+        const cache = opponentCacheRef.current;
+        let cached = cache[opponentId];
+
+        if (!cached) {
+          const [opponentTeamRes, opponentPlayersRes] = await Promise.all([
+            fetch(`${API_URL}/api/teams/${opponentId}`),
+            fetch(`${API_URL}/api/players?teamId=${opponentId}`),
+          ]);
+
+          if (!opponentTeamRes.ok) {
+            throw new Error("Failed to fetch opponent team");
+          }
+          if (!opponentPlayersRes.ok) {
+            throw new Error("Failed to fetch opponent players");
+          }
+
+          const opponentTeamData: Team = await opponentTeamRes.json();
+          const opponentPlayersRaw = await opponentPlayersRes.json();
+          const opponentRoster: Player[] = Array.isArray(opponentPlayersRaw)
+            ? opponentPlayersRaw.map((player: any) => mapServerPlayer(player))
+            : [];
+
+          cached = { team: opponentTeamData, players: opponentRoster };
+          cache[opponentId] = cached;
+        }
+
+        const opponentLineups = mapServerLineups(
+          cached.team.lineups,
+          cached.players
+        );
+        const fallbackLineup = mapServerLineup(
+          cached.team.lineup,
+          cached.players
+        );
+        let resolvedLineup = pickLineupForWeek(
+          opponentLineups,
+          fallbackLineup,
+          selectedWeek
+        );
+        if (!resolvedLineup && cached.players.length) {
+          resolvedLineup = buildDefaultLineup(cached.players);
+        }
+        const starterTotal = sumStarterPoints(resolvedLineup, selectedWeek);
+
+        if (!cancelled) {
+          setOpponentInfo({
+            teamId: opponentId,
+            name: cached.team.name,
+            starterTotal,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading opponent info:", error);
+        if (!cancelled) {
+          setOpponentInfo(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setOpponentLoading(false);
+        }
+      }
+    };
+
+    void loadOpponent();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [API_URL, team?._id, matchupsByWeek, selectedWeek]);
 
   useEffect(() => {
     setLineupsByWeek((current) => {
@@ -394,6 +550,16 @@ export default function TeamPage() {
             <div className="metric metric--starter">
               <span className="metric-label">Starter Points</span>
               <span className="metric-value">{starterTotal.toFixed(2)}</span>
+            </div>
+            <div className="metric metric--opponent">
+              <span className="metric-label">Opponent</span>
+              <span className="metric-value metric-value--opponent">
+                {opponentLoading
+                  ? "Loading..."
+                  : opponentInfo
+                  ? `${opponentInfo.name.toUpperCase()} - ${opponentInfo.starterTotal.toFixed(2)}`
+                  : "TBD"}
+              </span>
             </div>
             <div className="metric metric--result">
               <span className="metric-label">{weekLabel} Result</span>

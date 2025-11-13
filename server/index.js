@@ -87,6 +87,7 @@ settingsSchema.index({ key: 1 }, { unique: true });
 const Setting = mongoose.model("Setting", settingsSchema);
 const CURRENT_WEEK_KEY = "currentWeek";
 const DEFAULT_WEEK = "week1";
+const MATCHUPS_KEY = "matchups";
 
 const serializeLineup = (lineup) => {
   if (!lineup) return {};
@@ -159,6 +160,55 @@ const setCurrentWeek = async (week) => {
   return normalizeWeekKey(updated.value) ?? DEFAULT_WEEK;
 };
 
+const ensureMatchupsSetting = async () => {
+  let setting = await Setting.findOne({ key: MATCHUPS_KEY });
+  if (!setting) {
+    setting = new Setting({ key: MATCHUPS_KEY, value: {} });
+    await setting.save();
+  }
+  if (!setting.value || typeof setting.value !== "object") {
+    setting.value = {};
+  }
+  return setting;
+};
+
+const normalizeMatchupsValue = (value) => {
+  if (!value || typeof value !== "object") return {};
+  return Object.entries(value).reduce((acc, [weekKey, pairings]) => {
+    const normalizedWeek = normalizeWeekKey(weekKey);
+    if (!normalizedWeek) return acc;
+    if (!pairings || typeof pairings !== "object") {
+      acc[normalizedWeek] = {};
+      return acc;
+    }
+    const cleaned = {};
+    Object.entries(pairings).forEach(([teamId, opponentId]) => {
+      if (
+        typeof teamId === "string" &&
+        typeof opponentId === "string" &&
+        teamId &&
+        opponentId
+      ) {
+        cleaned[teamId] = opponentId;
+      }
+    });
+    acc[normalizedWeek] = cleaned;
+    return acc;
+  }, {});
+};
+
+const getMatchupsMap = async () => {
+  const setting = await ensureMatchupsSetting();
+  return normalizeMatchupsValue(setting.value);
+};
+
+const saveMatchupsMap = async (nextValue) => {
+  const setting = await ensureMatchupsSetting();
+  setting.value = nextValue;
+  await setting.save();
+  return normalizeMatchupsValue(setting.value);
+};
+
 const formatTeam = (team) => {
   const plain = team.toObject();
   const serializedLineups = serializeLineups(team.lineups ?? plain.lineups);
@@ -214,6 +264,89 @@ app.patch("/api/settings/current-week", async (req, res) => {
     res.json({ currentWeek: normalizedWeek });
   } catch (err) {
     console.error("Error updating current week:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// MATCHUPS
+app.get("/api/matchups", async (req, res) => {
+  try {
+    const matchups = await getMatchupsMap();
+    res.json(matchups);
+  } catch (err) {
+    console.error("Error fetching matchups:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/matchups/:week", async (req, res) => {
+  try {
+    const weekKey = normalizeWeekKey(req.params.week);
+    if (!weekKey) {
+      return res.status(400).json({ message: "Invalid week parameter" });
+    }
+    const matchups = await getMatchupsMap();
+    res.json(matchups[weekKey] ?? {});
+  } catch (err) {
+    console.error("Error fetching weekly matchups:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.put("/api/matchups/:week", async (req, res) => {
+  try {
+    const weekKey = normalizeWeekKey(req.params.week);
+    if (!weekKey) {
+      return res.status(400).json({ message: "Invalid week parameter" });
+    }
+
+    const { pairings } = req.body;
+    if (!Array.isArray(pairings)) {
+      return res
+        .status(400)
+        .json({ message: "Pairings array is required to set matchups" });
+    }
+
+    const cleanedPairs = pairings
+      .map((pair) => ({
+        teamA:
+          typeof pair.teamA === "string" ? pair.teamA.trim() : "",
+        teamB:
+          typeof pair.teamB === "string" ? pair.teamB.trim() : "",
+      }))
+      .filter((pair) => pair.teamA && pair.teamB);
+
+    const assigned = new Set();
+    const weekMatchups = {};
+
+    for (const { teamA, teamB } of cleanedPairs) {
+      if (teamA === teamB) {
+        return res
+          .status(400)
+          .json({ message: "A team cannot be matched against itself" });
+      }
+      if (assigned.has(teamA) || assigned.has(teamB)) {
+        return res
+          .status(400)
+          .json({ message: "Each team can only appear in one matchup per week" });
+      }
+      assigned.add(teamA);
+      assigned.add(teamB);
+      weekMatchups[teamA] = teamB;
+      weekMatchups[teamB] = teamA;
+    }
+
+    const existing = await getMatchupsMap();
+    if (Object.keys(weekMatchups).length) {
+      existing[weekKey] = weekMatchups;
+    } else {
+      delete existing[weekKey];
+    }
+
+    const persisted = await saveMatchupsMap(existing);
+    res.json(persisted[weekKey] ?? {});
+  } catch (err) {
+    console.error("Error saving matchups:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
