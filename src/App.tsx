@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import Fantasy from "./Pages/Fantasy";
 import TeamPage from "./Pages/TeamPage";
 import Scoreboard from "./Pages/Scoreboard";
+import Standings from "./Pages/Standings";
 import Home from "./Pages/Home";
 import "./App.css";
 
@@ -170,6 +171,18 @@ export default function App() {
                 Scoreboard
               </Link>
             </li>
+            <li className="navitem">
+              <Link
+                to="/standings"
+                className="nav-link"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setDropdownOpen(false);
+                }}
+              >
+                Standings
+              </Link>
+            </li>
           </ul>
         </div>
       </nav>
@@ -180,6 +193,7 @@ export default function App() {
           <Route path="/fantasy" element={<Fantasy />} />
           <Route path="/team/:id" element={<TeamPage />} />
           <Route path="/scoreboard" element={<Scoreboard />} />
+          <Route path="/standings" element={<Standings />} />
         </Routes>
       </div>
     </BrowserRouter>
