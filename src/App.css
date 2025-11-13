@@ -887,8 +887,8 @@ input, select {
   position: relative;
   border-radius: 20px;
   padding: 18px 20px 16px;
-  background: linear-gradient(140deg, rgba(25, 34, 39, 0.92), rgba(25, 34, 39, 0.7));
-  border: 1px solid rgba(138, 141, 143, 0.24);
+  background: var(--row-background, linear-gradient(140deg, rgba(25, 34, 39, 0.92), rgba(25, 34, 39, 0.7)));
+  border: 1px solid var(--row-border, rgba(138, 141, 143, 0.24));
   box-shadow: 0 16px 32px rgba(9, 17, 23, 0.35);
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -959,7 +959,7 @@ input, select {
 
 .row-right {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-end;
   min-width: 72px;
   gap: 4px;
@@ -1041,13 +1041,13 @@ input, select {
   padding-left: 8px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(248, 250, 252, 0.65);
+  color: var(--rank-label-color, rgba(248, 250, 252, 0.65));
 }
 
 .rank-number {
   font-size: 1.15rem;
   font-weight: 700;
-  color: var(--accent-color, #5bdbe6);
+  color: var(--rank-number-color, var(--accent-color, #5bdbe6));
 }
 
 .rank-label {
@@ -1069,8 +1069,8 @@ input, select {
   gap: 4px;
   padding: 12px 16px;
   border-radius: 14px;
-  background: rgba(15, 26, 32, 0.85);
-  border: 1px solid rgba(28, 163, 180, 0.25);
+  background: var(--stat-pill-bg, rgba(15, 26, 32, 0.85));
+  border: 1px solid var(--stat-pill-border, rgba(28, 163, 180, 0.25));
   min-width: 96px;
   text-align: right;
 }

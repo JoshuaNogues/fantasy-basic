@@ -17,34 +17,65 @@ interface TeamStandings extends DecoratedTeam {
   losses: number;
   winPct: number;
   totalGames: number;
+  rank: number;
+  streakLabel: string | null;
 }
 
-const ACCENT_THEMES = [
+interface ThemeGroup {
+  accentColor: string;
+  glow: string;
+  badgeGradient: string;
+  badgeTextColor: string;
+  rowBackground: string;
+  rowBorder: string;
+  statPillBg: string;
+  statPillBorder: string;
+  rankLabelColor: string;
+  rankNumberColor?: string;
+}
+
+const STANDINGS_THEMES: ThemeGroup[] = [
   {
     accentColor: "#5bdbe6",
     glow: "rgba(28, 163, 180, 0.38)",
     badgeGradient: "linear-gradient(135deg, #0e7481, #1ca3b4)",
     badgeTextColor: "#062126",
+    rowBackground: "linear-gradient(140deg, #031723, #0c3441)",
+    rowBorder: "rgba(91, 219, 230, 0.35)",
+    statPillBg: "rgba(3, 18, 24, 0.92)",
+    statPillBorder: "rgba(91, 219, 230, 0.35)",
+    rankLabelColor: "rgba(91, 219, 230, 0.8)",
+  },
+  {
+    accentColor: "#cbd5f5",
+    glow: "rgba(203, 213, 245, 0.32)",
+    badgeGradient: "linear-gradient(135deg, #3b424f, #6b7684)",
+    badgeTextColor: "#f8fafc",
+    rowBackground: "linear-gradient(140deg, #1c1f24, #262c34)",
+    rowBorder: "rgba(148, 163, 184, 0.35)",
+    statPillBg: "rgba(18, 22, 29, 0.92)",
+    statPillBorder: "rgba(148, 163, 184, 0.45)",
+    rankLabelColor: "rgba(203, 213, 225, 0.75)",
   },
   {
     accentColor: "#FA4616",
-    glow: "rgba(250, 70, 22, 0.35)",
-    badgeGradient: "linear-gradient(135deg, #c33210, #FA4616)",
+    glow: "rgba(250, 70, 22, 0.45)",
+    badgeGradient: "linear-gradient(135deg, #4a1c11, #FA4616)",
     badgeTextColor: "#120b08",
+    rowBackground: "linear-gradient(140deg, #2a0e0a, #40140d)",
+    rowBorder: "rgba(250, 70, 22, 0.4)",
+    statPillBg: "rgba(33, 12, 10, 0.92)",
+    statPillBorder: "rgba(250, 70, 22, 0.4)",
+    rankLabelColor: "#f1f5f9",
+    rankNumberColor: "#f1f5f9",
   },
-  {
-    accentColor: "#8A8D8F",
-    glow: "rgba(138, 141, 143, 0.32)",
-    badgeGradient: "linear-gradient(135deg, #4a4d4f, #8A8D8F)",
-    badgeTextColor: "#f3f4f6",
-  },
-  {
-    accentColor: "#29b9cc",
-    glow: "rgba(41, 185, 204, 0.32)",
-    badgeGradient: "linear-gradient(135deg, #165d66, #29b9cc)",
-    badgeTextColor: "#062126",
-  },
-] as const;
+];
+
+const getThemeForRank = (rank: number): ThemeGroup => {
+  if (rank <= 3) return STANDINGS_THEMES[0];
+  if (rank <= 6) return STANDINGS_THEMES[1];
+  return STANDINGS_THEMES[2];
+};
 
 const getTeamInitials = (name: string) => {
   const trimmed = name.trim();
@@ -54,6 +85,11 @@ const getTeamInitials = (name: string) => {
     return words[0].slice(0, 2).toUpperCase();
   }
   return (words[0][0] + words[1][0]).toUpperCase();
+};
+
+const parseWeekNumber = (week: string): number | null => {
+  const parsed = Number.parseInt(week.replace("week", ""), 10);
+  return Number.isNaN(parsed) ? null : parsed;
 };
 
 const computeRecordTotals = (team: ApiTeam) => {
@@ -71,6 +107,33 @@ const computeRecordTotals = (team: ApiTeam) => {
   const totalGames = wins + losses;
   const winPct = totalGames === 0 ? 0 : wins / totalGames;
   return { wins, losses, totalGames, winPct };
+};
+
+const computeStreakLabel = (record?: Record<string, "W" | "L">) => {
+  if (!record) return null;
+
+  const entries = Object.entries(record);
+  if (entries.length === 0) return null;
+
+  const sorted = entries
+    .map(([week, result]) => ({
+      week,
+      result,
+      order: parseWeekNumber(week) ?? Number.POSITIVE_INFINITY,
+    }))
+    .sort((a, b) => a.order - b.order || a.week.localeCompare(b.week));
+
+  const last = sorted[sorted.length - 1];
+  if (!last) return null;
+
+  const targetResult = last.result;
+  let count = 0;
+  for (let i = sorted.length - 1; i >= 0; i -= 1) {
+    if (sorted[i].result === targetResult) count += 1;
+    else break;
+  }
+
+  return `${targetResult}${count}`;
 };
 
 const formatOrdinal = (rank: number) => {
@@ -105,10 +168,11 @@ export default function Standings() {
   }, [API_URL]);
 
   const standings: TeamStandings[] = useMemo(() => {
-    return teams
+    const sorted = teams
       .map((team) => {
         const totals = computeRecordTotals(team);
-        return { ...team, ...totals };
+        const streakLabel = computeStreakLabel(team.record);
+        return { ...team, ...totals, streakLabel };
       })
       .sort((a, b) => {
         if (a.winPct !== b.winPct) return b.winPct - a.winPct;
@@ -116,6 +180,23 @@ export default function Standings() {
         if (a.losses !== b.losses) return a.losses - b.losses;
         return b.tieBreaker - a.tieBreaker;
       });
+
+    const ranked: TeamStandings[] = [];
+    let teamsProcessed = 0;
+    let currentRank = 1;
+    let lastKey: string | null = null;
+
+    sorted.forEach((team) => {
+      const key = `${team.wins}-${team.losses}-${team.totalGames}`;
+      if (key !== lastKey) {
+        currentRank = teamsProcessed + 1;
+      }
+      ranked.push({ ...team, rank: currentRank });
+      teamsProcessed += 1;
+      lastKey = key;
+    });
+
+    return ranked;
   }, [teams]);
 
   return (
@@ -128,20 +209,25 @@ export default function Standings() {
           </div>
           <h1>Standings</h1>
           <p className="hero-copy">
-            Snapshot of every squad&apos;s season record. Ties shuffle randomly
-            for now, so keep winning to stay on top.
+            Snapshot of every squad&apos;s season record and streaks. So keep winning to stay on top.
           </p>
         </header>
 
         <section className="scoreboard-list standings-list">
           {standings.length > 0 ? (
-            standings.map((team, index) => {
-              const theme = ACCENT_THEMES[index % ACCENT_THEMES.length];
+            standings.map((team) => {
+              const theme = getThemeForRank(team.rank);
               const style = {
                 "--accent-color": theme.accentColor,
                 "--accent-glow": theme.glow,
                 "--badge-gradient": theme.badgeGradient,
                 "--badge-text-color": theme.badgeTextColor,
+                "--row-background": theme.rowBackground,
+                "--row-border": theme.rowBorder,
+                "--stat-pill-bg": theme.statPillBg,
+                "--stat-pill-border": theme.statPillBorder,
+                "--rank-label-color": theme.rankLabelColor,
+                "--rank-number-color": theme.rankNumberColor ?? theme.accentColor,
               } as CSSProperties;
 
               const recordLabel =
@@ -156,7 +242,7 @@ export default function Standings() {
                   style={style}
                 >
                   <div className="standings-rank">
-                    <span className="rank-number">{formatOrdinal(index + 1)}</span>
+                    <span className="rank-number">{formatOrdinal(team.rank)}</span>
                     <span className="rank-label">Place</span>
                   </div>
 
@@ -176,12 +262,14 @@ export default function Standings() {
                       <div className="stat-pill">
                         <span className="stat-label">Win %</span>
                         <span className="stat-value">
-                          {team.totalGames > 0 ? team.winPct.toFixed(3) : "—"}
+                          {team.totalGames > 0 ? team.winPct.toFixed(3) : "-"}
                         </span>
                       </div>
                       <div className="stat-pill">
-                        <span className="stat-label">Games</span>
-                        <span className="stat-value">{team.totalGames}</span>
+                        <span className="stat-label">Streak</span>
+                        <span className="stat-value">
+                          {team.streakLabel ?? "-"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -205,4 +293,3 @@ export default function Standings() {
     </div>
   );
 }
-
